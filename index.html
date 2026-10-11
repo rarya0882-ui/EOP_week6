@@ -1,0 +1,2874 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>EOP Training Academy: Office Run Week 6</title>
+  <style>
+    :root {
+      --primary: #1e3a8a;
+      --accent: #f59e0b;
+      --success: #10b981;
+      --danger: #ef4444;
+      --uma-cyan: #38bdf8;
+      --panel-bg: rgba(255, 255, 255, 0.96);
+      --font-stack: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    body {
+      background-color: #0b0f19;
+      font-family: var(--font-stack);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      overflow: hidden;
+    }
+
+    #game-container {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      max-width: 480px;
+      max-height: 960px;
+      background: #000;
+      overflow: hidden;
+      box-shadow: 0 0 50px rgba(0, 0, 0, 0.95);
+    }
+
+    #fx-canvas {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 120;
+    }
+
+    .screen-flash {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 110;
+      opacity: 0;
+      transition: opacity 0.15s ease-out;
+    }
+
+    .screen-flash.flash-correct {
+      background: radial-gradient(circle, rgba(16, 185, 129, 0.45) 0%, rgba(16, 185, 129, 0) 80%);
+      opacity: 1;
+    }
+
+    .screen-flash.flash-wrong {
+      background: radial-gradient(circle, rgba(239, 68, 68, 0.5) 0%, rgba(239, 68, 68, 0.15) 100%);
+      border: 4px solid var(--danger);
+      opacity: 1;
+    }
+
+    @keyframes screenShake {
+      0% { transform: translate(0, 0); }
+      15% { transform: translate(-8px, 6px); }
+      30% { transform: translate(7px, -6px); }
+      45% { transform: translate(-6px, -4px); }
+      60% { transform: translate(5px, 5px); }
+      75% { transform: translate(-3px, 2px); }
+      100% { transform: translate(0, 0); }
+    }
+
+    .shake-active { animation: screenShake 0.4s ease-in-out; }
+
+    .floating-text {
+      position: absolute;
+      pointer-events: none;
+      font-weight: 900;
+      font-size: 19px;
+      z-index: 130;
+      animation: floatUpFade 0.9s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+      text-shadow: 0 2px 8px rgba(0,0,0,0.8);
+    }
+
+    @keyframes floatUpFade {
+      0% { opacity: 0; transform: translateY(0) scale(0.6); }
+      20% { opacity: 1; transform: translateY(-12px) scale(1.15); }
+      80% { opacity: 1; transform: translateY(-38px) scale(1.0); }
+      100% { opacity: 0; transform: translateY(-56px) scale(0.9); }
+    }
+
+    #game-toast {
+      position: absolute;
+      top: 68px;
+      left: 14px;
+      right: 14px;
+      padding: 10px 14px;
+      border-radius: 12px;
+      background: rgba(15, 23, 42, 0.95);
+      color: #fff;
+      font-size: 12px;
+      font-weight: 700;
+      text-align: center;
+      z-index: 140;
+      display: none;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+      border: 1.5px solid var(--accent);
+      animation: slideDownToast 0.25s ease-out;
+    }
+
+    @keyframes slideDownToast {
+      from { transform: translateY(-20px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+
+    .screen {
+      position: absolute;
+      inset: 0;
+      display: none;
+      flex-direction: column;
+      z-index: 10;
+    }
+
+    .screen.active { display: flex; }
+
+    #screen-init {
+      background: radial-gradient(circle, #1e3a8a 0%, #0b0f19 100%);
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      padding: 30px;
+      cursor: pointer;
+      z-index: 150;
+    }
+
+    .tap-prompt-pulse { animation: promptPulse 1.2s infinite alternate; }
+
+    @keyframes promptPulse {
+      0% { transform: scale(0.96); opacity: 0.8; }
+      100% { transform: scale(1.04); opacity: 1; }
+    }
+
+    #screen-flash {
+      background: #000;
+      justify-content: center;
+      align-items: center;
+      z-index: 100;
+    }
+
+    #flash-video { width: 100%; height: 100%; object-fit: cover; }
+
+    .skip-btn {
+      position: absolute;
+      bottom: 24px;
+      right: 20px;
+      background: rgba(0, 0, 0, 0.7);
+      color: #fff;
+      border: 1px solid rgba(255, 255, 255, 0.4);
+      padding: 8px 18px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 800;
+      cursor: pointer;
+    }
+
+    #screen-title {
+      background: linear-gradient(180deg, #1e3a8a 0%, #0f172a 100%);
+      justify-content: space-between;
+      align-items: center;
+      padding: 50px 24px 35px;
+      text-align: center;
+    }
+
+    .main-logo {
+      width: 80%;
+      max-width: 320px;
+      height: auto;
+      object-fit: contain;
+      filter: drop-shadow(0 6px 14px rgba(0,0,0,0.6));
+    }
+
+    .btn-uma-main {
+      background: linear-gradient(180deg, #fbbf24 0%, #d97706 100%);
+      color: #78350f;
+      border: 2px solid #fef3c7;
+      box-shadow: 0 6px 0 #92400e, 0 10px 18px rgba(0, 0, 0, 0.35);
+      padding: 14px 38px;
+      border-radius: 35px;
+      font-size: 16px;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      cursor: pointer;
+      transition: all 0.1s ease;
+    }
+
+    .btn-uma-main:active {
+      transform: translateY(4px);
+      box-shadow: 0 2px 0 #92400e;
+    }
+
+    #screen-register {
+      background: #0f172a;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .reg-card {
+      background: var(--panel-bg);
+      border-radius: 20px;
+      padding: 22px 18px;
+      border: 3px solid #3b82f6;
+      box-shadow: 0 15px 35px rgba(0, 0, 0, 0.5);
+    }
+
+    .form-group { margin-bottom: 11px; }
+
+    .form-group label {
+      display: block;
+      font-size: 11px;
+      font-weight: 800;
+      color: #475569;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+
+    .form-group input {
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 2px solid #cbd5e1;
+      font-size: 14px;
+      font-weight: 600;
+      outline: none;
+      user-select: text;
+      -webkit-user-select: text;
+    }
+
+    .modal-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.78);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+      z-index: 999;
+    }
+
+    .modal-overlay.active { display: flex; }
+
+    .modal-box {
+      background: #fff;
+      border-radius: 16px;
+      padding: 18px;
+      width: 100%;
+      max-height: 85vh;
+      overflow-y: auto;
+      border: 3px solid var(--accent);
+      text-align: center;
+    }
+
+    .uma-hud {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      padding: 10px 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      z-index: 30;
+      pointer-events: none;
+    }
+
+    .hud-left, .hud-right {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      pointer-events: auto;
+    }
+
+    .trainer-pill {
+      background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(6px);
+      padding: 4px 10px;
+      border-radius: 20px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      color: #fff;
+      font-size: 10px;
+      font-weight: 700;
+    }
+
+    .stamina-wrap {
+      width: 125px;
+      background: rgba(0, 0, 0, 0.7);
+      padding: 4px 7px;
+      border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+    }
+
+    .stamina-label {
+      font-size: 9px;
+      font-weight: 800;
+      color: #38bdf8;
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 2px;
+    }
+
+    .stamina-bar-bg {
+      height: 5px;
+      background: #334155;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .stamina-bar-fill {
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, #38bdf8, #10b981);
+      transition: width 0.3s;
+    }
+
+    .timer-badge {
+      background: rgba(15, 23, 42, 0.88);
+      border: 2px solid var(--accent);
+      color: #fef08a;
+      font-size: 12px;
+      font-weight: 900;
+      padding: 3px 8px;
+      border-radius: 7px;
+    }
+
+    .score-badge {
+      background: rgba(0, 0, 0, 0.78);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      color: #fff;
+      font-size: 11px;
+      font-weight: 800;
+      padding: 3px 7px;
+      border-radius: 6px;
+      text-align: right;
+    }
+
+    .combo-badge {
+      background: linear-gradient(135deg, #ef4444, #f59e0b);
+      color: #fff;
+      font-size: 9px;
+      font-weight: 900;
+      padding: 2px 7px;
+      border-radius: 8px;
+      text-align: center;
+      letter-spacing: 0.5px;
+      display: none;
+      animation: pulseCombo 0.7s infinite alternate;
+    }
+
+    @keyframes pulseCombo {
+      from { transform: scale(1); }
+      to { transform: scale(1.08); }
+    }
+
+    .bg-layer {
+      position: absolute;
+      inset: 0;
+      background-size: cover;
+      background-position: center bottom;
+      z-index: 1;
+      transition: background-image 0.4s ease;
+    }
+
+    .bg-scrim {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(180deg, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0.05) 30%, rgba(0,0,0,0.65) 100%);
+      z-index: 2;
+      pointer-events: none;
+    }
+
+    .sprite-stage {
+      position: absolute;
+      inset: 0;
+      z-index: 5;
+      display: flex;
+      justify-content: center;
+      align-items: flex-end;
+      pointer-events: none;
+      overflow: hidden;
+    }
+
+    .character-sprite {
+      width: auto;
+      height: 82vh;
+      max-height: 720px;
+      object-fit: contain;
+      object-position: bottom center;
+      margin-bottom: 120px;
+      filter: drop-shadow(0 12px 24px rgba(0, 0, 0, 0.5));
+      transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), filter 0.25s ease;
+    }
+
+    .character-sprite.react-bounce {
+      transform: scale(1.06) translateY(-16px);
+      filter: drop-shadow(0 18px 28px rgba(16, 185, 129, 0.45));
+    }
+
+    .character-sprite.react-drop {
+      transform: scale(0.95) translateY(14px);
+      filter: grayscale(0.5) drop-shadow(0 4px 10px rgba(239, 68, 68, 0.6));
+    }
+
+    #screen-menu .sprite-stage {
+      bottom: 56px;
+      align-items: flex-end;
+      pointer-events: auto;
+    }
+
+    #screen-menu .character-sprite {
+      height: 88vh;
+      max-height: 780px;
+      margin-bottom: 0 !important;
+      cursor: pointer;
+    }
+
+    .menu-speech-bubble {
+      position: absolute;
+      top: 85px;
+      left: 18px;
+      right: 18px;
+      background: rgba(255, 255, 255, 0.95);
+      border: 2px solid #38bdf8;
+      border-radius: 16px;
+      padding: 10px 14px;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.4);
+      z-index: 25;
+      cursor: pointer;
+      animation: floatBubble 2.5s ease-in-out infinite alternate;
+    }
+
+    .menu-speech-bubble::after {
+      content: "";
+      position: absolute;
+      bottom: -10px;
+      left: 45%;
+      border-width: 10px 10px 0;
+      border-style: solid;
+      border-color: rgba(255, 255, 255, 0.95) transparent;
+      display: block;
+      width: 0;
+    }
+
+    @keyframes floatBubble {
+      0% { transform: translateY(0); }
+      100% { transform: translateY(-4px); }
+    }
+
+    .menu-speaker-name {
+      font-size: 10px;
+      font-weight: 800;
+      color: #0284c7;
+      text-transform: uppercase;
+      margin-bottom: 2px;
+    }
+
+    .menu-speaker-text {
+      font-size: 12px;
+      font-weight: 700;
+      color: #1e293b;
+      line-height: 1.35;
+    }
+
+    .menu-scroll-area {
+      position: absolute;
+      left: 14px;
+      right: 14px;
+      bottom: 64px;
+      max-height: 148px;
+      overflow-y: auto;
+      z-index: 20;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      padding-right: 4px;
+      background: rgba(11, 15, 25, 0.45);
+      border-radius: 14px;
+      padding: 6px;
+    }
+
+    .menu-scroll-area::-webkit-scrollbar { width: 4px; }
+    .menu-scroll-area::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.3);
+      border-radius: 4px;
+    }
+
+    .mode-card {
+      position: relative;
+      width: 100%;
+      height: 54px;
+      min-height: 54px;
+      border-radius: 10px;
+      overflow: hidden;
+      border: 1.5px solid #60a5fa;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      background: rgba(15, 23, 42, 0.92);
+      backdrop-filter: blur(8px);
+    }
+
+    .mode-card:hover { transform: translateY(-1px); }
+
+    .mode-card.locked {
+      filter: grayscale(1) opacity(0.55);
+      border-color: #475569;
+      cursor: not-allowed;
+    }
+
+    .mode-card-thumb {
+      width: 70px;
+      height: 100%;
+      object-fit: cover;
+      border-right: 1.5px solid rgba(255, 255, 255, 0.15);
+    }
+
+    .mode-card-info {
+      flex: 1;
+      padding: 5px 8px;
+      color: #fff;
+    }
+
+    .mode-card-title {
+      font-size: 11.5px;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    .mode-card-desc {
+      font-size: 9px;
+      color: #94a3b8;
+    }
+
+    .mode-card-status {
+      padding: 2px 7px;
+      font-size: 8.5px;
+      font-weight: 800;
+      border-radius: 10px;
+      margin-right: 8px;
+      background: rgba(0, 0, 0, 0.6);
+    }
+
+    .bottom-bar {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 56px;
+      background: rgba(15, 23, 42, 0.95);
+      border-top: 2px solid #334155;
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+      padding: 0 8px;
+      z-index: 25;
+    }
+
+    .btn-nav-mini {
+      background: #1e293b;
+      color: #fff;
+      border: 1px solid #475569;
+      padding: 7px 11px;
+      border-radius: 9px;
+      font-size: 11px;
+      font-weight: 800;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .btn-nav-mini:active { background: #334155; }
+
+    .interactive-card {
+      position: absolute;
+      bottom: 12px;
+      left: 12px;
+      right: 12px;
+      background: var(--panel-bg);
+      border-radius: 16px;
+      border: 2px solid #93c5fd;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+      padding: 12px 14px;
+      z-index: 25;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      max-height: 56vh;
+      overflow-y: auto;
+    }
+
+    .speaker-tag {
+      align-self: flex-start;
+      background: linear-gradient(180deg, #1e40af 0%, #1d4ed8 100%);
+      color: #fff;
+      font-size: 11px;
+      font-weight: 800;
+      padding: 3px 10px;
+      border-radius: 12px;
+    }
+
+    .dialogue-text {
+      font-size: 13px;
+      line-height: 1.4;
+      color: #1e293b;
+      font-weight: 600;
+      min-height: 36px;
+    }
+
+    .quiz-options {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .quiz-btn {
+      background: #f8fafc;
+      border: 1.5px solid #cbd5e1;
+      padding: 9px 11px;
+      border-radius: 9px;
+      text-align: left;
+      font-size: 12px;
+      font-weight: 700;
+      color: #334155;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .quiz-btn:active {
+      transform: scale(0.98);
+      background: #e2e8f0;
+    }
+
+    .quiz-btn.btn-btn-correct {
+      border-color: var(--success);
+      background: #dcfce7;
+      color: #166534;
+    }
+
+    .quiz-btn.btn-btn-wrong {
+      border-color: var(--danger);
+      background: #fee2e2;
+      color: #991b1b;
+    }
+
+    .chip-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 6px;
+      min-height: 38px;
+    }
+
+    .word-chip {
+      background: #2563eb;
+      color: #fff;
+      padding: 6px 11px;
+      border-radius: 8px;
+      font-size: 11.5px;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 3px 6px rgba(0,0,0,0.2);
+    }
+
+    .word-chip:active { transform: scale(0.92); }
+
+    .assembled-box {
+      min-height: 44px;
+      border: 2px dashed #93c5fd;
+      border-radius: 10px;
+      padding: 6px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      background: #f8fafc;
+    }
+
+    .email-editor-container {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      max-height: 220px;
+      overflow-y: auto;
+    }
+
+    .email-target-slots {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .email-slot {
+      background: #f1f5f9;
+      border: 1.5px dashed #94a3b8;
+      border-radius: 8px;
+      padding: 6px 8px;
+      font-size: 11px;
+      color: #475569;
+      cursor: pointer;
+      line-height: 1.3;
+    }
+
+    .email-slot.filled {
+      background: #e0f2fe;
+      border: 1.5px solid #38bdf8;
+      color: #0369a1;
+      font-weight: 700;
+    }
+
+    .email-bank-tray {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      margin-top: 4px;
+      padding-top: 6px;
+      border-top: 1px solid #cbd5e1;
+    }
+
+    .email-source-chip {
+      background: #fff;
+      border: 1.5px solid #3b82f6;
+      border-radius: 8px;
+      padding: 6px 8px;
+      font-size: 11px;
+      font-weight: 600;
+      color: #1e293b;
+      cursor: pointer;
+    }
+
+    .typing-terminal-box {
+      width: 100%;
+      padding: 9px 12px;
+      border-radius: 10px;
+      border: 2px solid #3b82f6;
+      font-size: 13px;
+      font-weight: 600;
+      outline: none;
+      user-select: text;
+      -webkit-user-select: text;
+      font-family: inherit;
+      background: #fff;
+      color: #0f172a;
+    }
+
+    #screen-results {
+      background: #0f172a;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+
+    .result-sheet {
+      background: var(--panel-bg);
+      border-radius: 20px;
+      padding: 20px 16px;
+      width: 100%;
+      text-align: center;
+      border: 3px solid #fbbf24;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7);
+    }
+
+    .rank-badge {
+      display: inline-block;
+      font-size: 42px;
+      font-weight: 900;
+      color: #d97706;
+      text-shadow: 0 2px 10px rgba(217, 119, 6, 0.4);
+      margin: 4px 0;
+    }
+  </style>
+</head>
+<body>
+
+  <audio id="bgm-player" loop preload="auto"></audio>
+  <audio id="voice-player" preload="auto"></audio>
+
+  <div id="game-container">
+    <canvas id="fx-canvas"></canvas>
+    <div id="screen-flash-layer" class="screen-flash"></div>
+    <div id="game-toast">Notification Message</div>
+
+    <!-- 0. USER GESTURE INITIALIZATION SCREEN -->
+    <div id="screen-init" class="screen active" onclick="app.userGestureStart()">
+      <div class="tap-prompt-pulse">
+        <div style="background: rgba(255,255,255,0.15); color: #93c5fd; padding: 6px 14px; border-radius: 20px; font-size: 11px; font-weight: 800; display: inline-block; margin-bottom: 20px; letter-spacing: 2px;">
+          EOP INTERACTIVE SYSTEM
+        </div>
+        <h2 style="color: #fff; font-size: 26px; font-weight: 900; text-transform: uppercase; margin-bottom: 10px;">
+          OFFICE<span style="color: var(--accent);">RUN!</span>
+        </h2>
+        <p style="color: #94a3b8; font-size: 13px; margin-bottom: 30px;">
+          Meeting 6: Solving a Customer Problem
+        </p>
+        <button class="btn-uma-main" style="font-size: 15px; padding: 14px 32px;">
+          TAP SCREEN TO START
+        </button>
+      </div>
+    </div>
+
+    <!-- 1. FLASH INTRO -->
+    <div id="screen-flash" class="screen">
+      <video id="flash-video" playsinline preload="auto">
+        <source src="flash.webm" type="video/webm" />
+      </video>
+      <button class="skip-btn" onclick="app.skipFlash()">SKIP &gt;&gt;</button>
+    </div>
+
+    <!-- 2. TITLE SCREEN -->
+    <div id="screen-title" class="screen">
+      <div>
+        <div style="background: #fff; color: #1e3a8a; padding: 4px 12px; border-radius: 12px; font-size: 11px; font-weight: 900; letter-spacing: 2px; display: inline-block; margin-bottom: 12px;">EOP TRAINING SYSTEM</div>
+        <br />
+        <img src="images/ui/logo_title.png" class="main-logo" alt="Office Run Logo" onerror="this.style.display='none'" />
+        <h1 style="color: #fff; font-size: 30px; font-weight: 900; text-transform: uppercase;">OFFICE<span style="color: var(--accent);">RUN!</span></h1>
+        <p style="color: #94a3b8; font-size: 13px; margin-top: 6px;">Meeting 6: Solving a Customer Problem</p>
+      </div>
+
+      <div style="display: flex; flex-direction: column; align-items: center; gap: 10px; width: 100%;">
+        <button class="btn-uma-main" style="width: 80%; max-width: 280px;" onclick="app.showRegister()">NEW SESSION</button>
+        <button id="btn-title-continue" class="btn-uma-main" style="display: none; width: 80%; max-width: 280px; background: linear-gradient(180deg, #10b981 0%, #047857 100%);" onclick="app.loadFromTitle()">
+          CONTINUE SESSION
+        </button>
+        <div style="color: #93c5fd; font-size: 12px; font-weight: 700;">TAP TO SELECT</div>
+      </div>
+
+      <div style="font-size: 10px; color: #64748b; font-weight: 600;">Universitas Pancasila &bull; 2026 Academic Season</div>
+    </div>
+
+    <!-- 3. REGISTRATION FORM -->
+    <div id="screen-register" class="screen">
+      <div class="reg-card">
+        <h2 style="font-size: 17px; font-weight: 800; color: #1e3a8a; text-align: center; margin-bottom: 14px; text-transform: uppercase;">Pair Registration</h2>
+        <div class="form-group">
+          <label>Student A (Player 1 - Customer / Nadia)</label>
+          <input type="text" id="reg-student-a" maxlength="24" placeholder="e.g. 4522210001 - Nadia" />
+        </div>
+        <div class="form-group">
+          <label>Student B (Player 2 - Staff / Rafi)</label>
+          <input type="text" id="reg-student-b" maxlength="24" placeholder="e.g. 4522210002 - Rafi" />
+        </div>
+        <div class="form-group">
+          <label>Class ID</label>
+          <input type="text" id="reg-class" maxlength="10" placeholder="e.g. SI-4A" />
+        </div>
+        <div class="form-group">
+          <label>Trainer / Team Handle</label>
+          <input type="text" id="reg-handle" maxlength="12" placeholder="e.g. AceTeam" />
+        </div>
+        <button class="btn-uma-main" style="width: 100%; margin-top: 8px; font-size: 15px; padding: 12px;" onclick="app.promptConfirm()">PROCEED TO HUB</button>
+      </div>
+    </div>
+
+    <!-- MODAL CONFIRMATION -->
+    <div id="modal-confirm" class="modal-overlay">
+      <div class="modal-box">
+        <h3 style="font-size: 15px; font-weight: 800; color: #1e293b; margin-bottom: 8px;">Confirm Verification Details</h3>
+        <div id="modal-summary-content" style="background: #f1f5f9; padding: 10px; border-radius: 8px; text-align: left; font-size: 12px; line-height: 1.6; margin-bottom: 12px;"></div>
+        <div style="display: flex; gap: 8px;">
+          <button style="flex:1; padding: 10px; border-radius: 8px; border: none; background: #e2e8f0; font-weight: 700; cursor: pointer;" onclick="app.closeModal('modal-confirm')">EDIT</button>
+          <button style="flex:1; padding: 10px; border-radius: 8px; border: none; background: var(--success); color: #fff; font-weight: 700; cursor: pointer;" onclick="app.launchMainMenu()">CONFIRM</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL PROGRESS & ANALYTICS -->
+    <div id="modal-progress" class="modal-overlay">
+      <div class="modal-box">
+        <h3 style="font-size: 16px; font-weight: 900; color: #1e3a8a; margin-bottom: 10px; text-transform: uppercase;">Real-Time Progress Log</h3>
+        <div id="progress-summary-content" style="background: #f8fafc; border: 1.5px solid #cbd5e1; border-radius: 10px; padding: 12px; text-align: left; font-size: 12px; line-height: 1.7; margin-bottom: 14px;"></div>
+        <button class="btn-uma-main" style="width: 100%; font-size: 13px; padding: 10px;" onclick="app.closeModal('modal-progress')">CLOSE MONITOR</button>
+      </div>
+    </div>
+
+    <!-- 4. MAIN MENU -->
+    <div id="screen-menu" class="screen">
+      <div id="menu-bg" class="bg-layer" style="background-image: url('images/backgrounds/bg_open_office.jpg');"></div>
+      <div class="bg-scrim"></div>
+
+      <div class="uma-hud">
+        <div class="hud-left">
+          <div class="trainer-pill">★ <span id="mhud-handle">TRAINER</span> &bull; <span id="mhud-class" style="color: #93c5fd;">CLASS</span></div>
+          <div class="stamina-wrap">
+            <div class="stamina-label"><span>ACCURACY</span><span id="mhud-stamina-val">100%</span></div>
+            <div class="stamina-bar-bg"><div id="mhud-stamina-fill" class="stamina-bar-fill"></div></div>
+          </div>
+        </div>
+        <div class="hud-right">
+          <div id="mhud-timer" class="timer-badge">00:00</div>
+          <div class="score-badge">SCORE: <span id="mhud-score" style="color: #fbbf24;">0</span></div>
+          <div id="mhud-combo" class="combo-badge">🔥 COMBO x0</div>
+        </div>
+      </div>
+
+      <div class="menu-speech-bubble" onclick="app.tapDinaGreeting()">
+        <div class="menu-speaker-name" id="menu-bubble-speaker">Maya (Senior Specialist)</div>
+        <div class="menu-speaker-text" id="menu-bubble-text">
+          "Remember the three terms: Complaint reports facts, Claim requests a fix, and Adjustment offers the remedy!"
+        </div>
+      </div>
+
+      <div class="sprite-stage" onclick="app.tapDinaGreeting()">
+        <img class="character-sprite" id="menu-dina-sprite" src="images/characters/maya_guide.png" alt="Maya Mentor" />
+      </div>
+
+      <div class="menu-scroll-area">
+        <div class="mode-card" onclick="app.startModule('grammar')">
+          <img src="images/ui/card_grammar.png" class="mode-card-thumb" alt="Tutorial Banner" />
+          <div class="mode-card-info">
+            <div class="mode-card-title">0. Three Core Terms</div>
+            <div class="mode-card-desc">Complaint, Claim &amp; Adjustment Blueprint</div>
+          </div>
+          <div class="mode-card-status" id="badge-mod-0" style="color: #34d399;">OPEN</div>
+        </div>
+
+        <div class="mode-card locked" id="card-mod-1" onclick="app.startModule('drill')">
+          <img src="images/ui/card_drill.png" class="mode-card-thumb" alt="Drill Banner" />
+          <div class="mode-card-info">
+            <div class="mode-card-title">1. Essential Word Bank</div>
+            <div class="mode-card-desc">Order, Damaged, Replace, Check &amp; Deadlines</div>
+          </div>
+          <div class="mode-card-status" id="badge-mod-1" style="color: #94a3b8;">LOCKED</div>
+        </div>
+
+        <div class="mode-card locked" id="card-mod-2" onclick="app.startModule('jumble')">
+          <img src="images/ui/card_jumble.png" class="mode-card-thumb" alt="Jumble Banner" />
+          <div class="mode-card-info">
+            <div class="mode-card-title">2. Helpful Sentence Patterns</div>
+            <div class="mode-card-desc">10 Clean Workplace Structures</div>
+          </div>
+          <div class="mode-card-status" id="badge-mod-2" style="color: #94a3b8;">LOCKED</div>
+        </div>
+
+        <div class="mode-card locked" id="card-mod-3" onclick="app.startModule('email')">
+          <img src="images/ui/card_email.png" class="mode-card-thumb" alt="Email Banner" />
+          <div class="mode-card-info">
+            <div class="mode-card-title">3. Model Case: Order 206</div>
+            <div class="mode-card-desc">10 Structured Email Solutions</div>
+          </div>
+          <div class="mode-card-status" id="badge-mod-3" style="color: #94a3b8;">LOCKED</div>
+        </div>
+
+        <div class="mode-card locked" id="card-mod-4" onclick="app.startModule('transcribe')">
+          <img src="images/ui/card_duel.png" class="mode-card-thumb" alt="Transcribe Banner" />
+          <div class="mode-card-info">
+            <div class="mode-card-title">4. Transcription Engine</div>
+            <div class="mode-card-desc">Precision Typing &amp; Punctuation</div>
+          </div>
+          <div class="mode-card-status" id="badge-mod-4" style="color: #94a3b8;">LOCKED</div>
+        </div>
+
+        <div class="mode-card locked" id="card-mod-5" onclick="app.startModule('capstone')">
+          <img src="images/ui/card_duel.png" class="mode-card-thumb" alt="Capstone Banner" />
+          <div class="mode-card-info">
+            <div class="mode-card-title">5. Capstone: Customer Triage</div>
+            <div class="mode-card-desc">10 Workplace Problem Solutions</div>
+          </div>
+          <div class="mode-card-status" id="badge-mod-5" style="color: #94a3b8;">LOCKED</div>
+        </div>
+
+        <div class="mode-card locked" id="card-mod-6" onclick="app.startModule('pair')">
+          <img src="images/ui/card_duel.png" class="mode-card-thumb" alt="Pair Banner" />
+          <div class="mode-card-info">
+            <div class="mode-card-title">6. Activity D: Paired Simulation</div>
+            <div class="mode-card-desc">12 Mugs Exchange: Nadia &amp; Rafi</div>
+          </div>
+          <div class="mode-card-status" id="badge-mod-6" style="color: #94a3b8;">LOCKED</div>
+        </div>
+      </div>
+
+      <div class="bottom-bar">
+        <button class="btn-nav-mini" onclick="app.saveGame()">SAVE</button>
+        <button class="btn-nav-mini" onclick="app.loadGame()">LOAD</button>
+        <button class="btn-nav-mini" onclick="app.openProgressModal()">PROGRESS</button>
+        <button class="btn-nav-mini" onclick="app.openVerification()">REPORT</button>
+      </div>
+    </div>
+
+    <!-- 5. ACTIVE STAGE & INTERACTIVE EXERCISE ENGINE -->
+    <div id="screen-game" class="screen">
+      <div id="game-bg" class="bg-layer"></div>
+      <div class="bg-scrim"></div>
+
+      <div class="uma-hud">
+        <div class="hud-left">
+          <div class="trainer-pill">★ <span id="hud-handle">TRAINER</span> &bull; <span id="hud-class" style="color: #93c5fd;">CLASS</span></div>
+          <div class="stamina-wrap">
+            <div class="stamina-label"><span>ACCURACY</span><span id="stamina-text">100%</span></div>
+            <div class="stamina-bar-bg"><div id="stamina-fill" class="stamina-bar-fill"></div></div>
+          </div>
+        </div>
+        <div class="hud-right">
+          <div id="hud-timer" class="timer-badge">00:00</div>
+          <div class="score-badge">SCORE: <span id="hud-score" style="color: #fbbf24;">0</span></div>
+          <div id="hud-combo" class="combo-badge">🔥 COMBO x0</div>
+          <button class="btn-nav-mini" style="margin-top: 4px; padding: 2px 8px; font-size: 9px;" onclick="app.returnToMenu()">HUB</button>
+        </div>
+      </div>
+
+      <div class="sprite-stage">
+        <img id="active-sprite" class="character-sprite" src="images/characters/maya_guide.png" alt="Character" />
+      </div>
+
+      <div class="interactive-card">
+        <div class="speaker-tag" id="dialogue-speaker">MENTOR</div>
+        <div class="dialogue-text" id="dialogue-body">"Dialogue instructions"</div>
+        <div id="interactive-body"></div>
+      </div>
+    </div>
+
+    <!-- 6. FINAL RESULTS & EXPORT SCREEN -->
+    <div id="screen-results" class="screen">
+      <div class="result-sheet">
+        <div style="background: #1e3a8a; color: #fff; padding: 3px 10px; border-radius: 10px; font-size: 11px; font-weight: 800; display: inline-block;">OFFICIAL SUBMISSION RECORD</div>
+        <h2 style="font-size: 18px; font-weight: 900; color: #1e3a8a; margin: 5px 0;">ACADEMY VERIFICATION</h2>
+        
+        <div class="rank-badge" id="res-rank">S</div>
+
+        <div style="background: #f1f5f9; padding: 9px 12px; border-radius: 12px; text-align: left; font-size: 11.5px; line-height: 1.6; margin-bottom: 10px;">
+          <div><strong>Student A (Nadia / Client):</strong> <span id="res-student-a">-</span></div>
+          <div><strong>Student B (Rafi / Staff):</strong> <span id="res-student-b">-</span></div>
+          <div><strong>Class:</strong> <span id="res-class">-</span></div>
+          <div><strong>Trainer Handle:</strong> <span id="res-handle">-</span></div>
+          <div><strong>Total Session Time:</strong> <span id="res-time" style="color: #2563eb; font-weight: 800;">-</span></div>
+          <div><strong>Final Cumulative Score:</strong> <span id="res-score" style="color: #d97706; font-weight: 900;">-</span></div>
+          <div><strong>Verification Token:</strong> <span id="res-token" style="font-family: monospace; color: #059669; font-weight: 700;">-</span></div>
+        </div>
+
+        <div style="display: flex; gap: 8px; margin-bottom: 10px;">
+          <button class="btn-uma-main" style="flex: 1; font-size: 12px; padding: 9px;" onclick="app.exportReport('doc')">📄 EXPORT .DOC</button>
+          <button class="btn-uma-main" style="flex: 1; font-size: 12px; padding: 9px; background: linear-gradient(180deg, #38bdf8 0%, #0284c7 100%); color: #fff;" onclick="app.exportReport('txt')">📝 EXPORT .TXT</button>
+        </div>
+
+        <button class="btn-nav-mini" style="width: 100%; padding: 8px; font-size: 11px;" onclick="app.returnToMenu()">RETURN TO HUB</button>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    const CharacterSprites = {
+      maya: {
+        idle: "images/characters/maya_guide.png",
+        thinking: "images/characters/maya_thinking.png",
+        correct: "images/characters/maya_pleased.png",
+        wrong: "images/characters/maya_thinking.png"
+      },
+      arman: {
+        idle: "images/characters/arman_instruct.png",
+        correct: "images/characters/arman_approving.png",
+        wrong: "images/characters/arman_stern.png",
+        sigh: "images/characters/arman_sigh.png"
+      },
+      rafi: {
+        idle: "images/characters/rafi_serious.png",
+        correct: "images/characters/rafi_smug.png",
+        wrong: "images/characters/rafi_shock.png"
+      },
+      mslee: {
+        idle: "images/characters/mslee_evaluating.png",
+        strict: "images/characters/mslee_strict.png",
+        correct: "images/characters/mslee_satisfied.png",
+        wrong: "images/characters/mslee_strict.png"
+      },
+      courier: {
+        idle: "images/characters/courier_handover.png",
+        correct: "images/characters/courier_handover.png",
+        wrong: "images/characters/courier_handover.png"
+      },
+
+      identify(speakerText) {
+        const lower = (speakerText || "").toLowerCase();
+        if (lower.includes("arman")) return "arman";
+        if (lower.includes("rafi")) return "rafi";
+        if (lower.includes("lee") || lower.includes("nadia")) return "mslee";
+        if (lower.includes("courier")) return "courier";
+        return "maya";
+      }
+    };
+
+    const SoundFX = {
+      ctx: null,
+
+      init() {
+        if (!this.ctx) {
+          const AudioContext = window.AudioContext || window.webkitAudioContext;
+          this.ctx = new AudioContext();
+        }
+        if (this.ctx && this.ctx.state === 'suspended') {
+          this.ctx.resume();
+        }
+      },
+
+      playTone(freq, type, duration, delay = 0, gainLevel = 0.22) {
+        this.init();
+        const startTime = this.ctx.currentTime + delay;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, startTime);
+        gain.gain.setValueAtTime(gainLevel, startTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(startTime);
+        osc.stop(startTime + duration);
+      },
+
+      tap() { this.init(); this.playTone(840, "sine", 0.05, 0, 0.15); },
+
+      correct() {
+        this.init();
+        const notes = [1046.5, 1318.5, 1567.98, 2093.0];
+        notes.forEach((freq, idx) => {
+          this.playTone(freq, "triangle", 0.28, idx * 0.07, 0.2);
+        });
+      },
+
+      wrong() {
+        this.init();
+        const t = this.ctx.currentTime;
+        const osc1 = this.ctx.createOscillator();
+        const osc2 = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+
+        osc1.type = "sawtooth";
+        osc2.type = "sawtooth";
+        osc1.frequency.setValueAtTime(140, t);
+        osc2.frequency.setValueAtTime(148, t);
+        gain.gain.setValueAtTime(0.28, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.35);
+
+        osc1.connect(gain);
+        osc2.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc1.start(t);
+        osc2.start(t);
+        osc1.stop(t + 0.35);
+        osc2.stop(t + 0.35);
+      },
+
+      comboJingle() {
+        this.init();
+        const chords = [523.25, 659.25, 783.99, 1046.50, 1318.51];
+        chords.forEach((freq, i) => {
+          this.playTone(freq, "sine", 0.32, i * 0.06, 0.22);
+        });
+      },
+
+      whoosh() {
+        this.init();
+        const bufferSize = this.ctx.sampleRate * 0.2;
+        const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+
+        const noise = this.ctx.createBufferSource();
+        noise.buffer = buffer;
+        const filter = this.ctx.createBiquadFilter();
+        filter.type = "bandpass";
+        filter.frequency.setValueAtTime(400, this.ctx.currentTime);
+        filter.frequency.exponentialRampToValueAtTime(1600, this.ctx.currentTime + 0.18);
+
+        const gain = this.ctx.createGain();
+        gain.gain.setValueAtTime(0.18, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.2);
+
+        noise.connect(filter);
+        filter.connect(gain);
+        gain.connect(this.ctx.destination);
+        noise.start();
+      }
+    };
+
+    const VisualFX = {
+      canvas: null,
+      ctx: null,
+      particles: [],
+      reactionTimeout: null,
+
+      init() {
+        this.canvas = document.getElementById("fx-canvas");
+        this.ctx = this.canvas.getContext("2d");
+        this.resize();
+        window.addEventListener("resize", () => this.resize());
+        this.loop();
+      },
+
+      resize() {
+        if (!this.canvas) return;
+        const parent = this.canvas.parentElement;
+        if (parent && parent.clientWidth && parent.clientHeight) {
+          this.canvas.width = parent.clientWidth;
+          this.canvas.height = parent.clientHeight;
+        }
+      },
+
+      loop() {
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        for (let i = this.particles.length - 1; i >= 0; i--) {
+          const p = this.particles[i];
+          p.x += p.vx;
+          p.y += p.vy;
+          p.vy += p.gravity;
+          p.rotation += p.rotSpeed;
+          p.alpha -= p.fade;
+          if (p.alpha <= 0) {
+            this.particles.splice(i, 1);
+            continue;
+          }
+          this.ctx.save();
+          this.ctx.globalAlpha = p.alpha;
+          this.ctx.translate(p.x, p.y);
+          this.ctx.rotate(p.rotation);
+          this.ctx.fillStyle = p.color;
+          this.ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size);
+          this.ctx.restore();
+        }
+        requestAnimationFrame(() => this.loop());
+      },
+
+      confettiBlast(originX, originY) {
+        const colors = ["#fbbf24", "#38bdf8", "#10b981", "#ec4899", "#f43f5e", "#a855f7"];
+        for (let i = 0; i < 46; i++) {
+          const angle = Math.random() * Math.PI * 2;
+          const speed = Math.random() * 8 + 3;
+          this.particles.push({
+            x: originX || this.canvas.width / 2,
+            y: originY || this.canvas.height / 2,
+            vx: Math.cos(angle) * speed,
+            vy: Math.sin(angle) * speed - 3,
+            size: Math.random() * 7 + 5,
+            color: colors[Math.floor(Math.random() * colors.length)],
+            rotation: Math.random() * 6,
+            rotSpeed: (Math.random() - 0.5) * 0.25,
+            gravity: 0.25,
+            alpha: 1,
+            fade: Math.random() * 0.015 + 0.015
+          });
+        }
+      },
+
+      flashScreen(isCorrect) {
+        const layer = document.getElementById("screen-flash-layer");
+        const container = document.getElementById("game-container");
+        layer.className = "screen-flash " + (isCorrect ? "flash-correct" : "flash-wrong");
+
+        if (!isCorrect) {
+          container.classList.remove("shake-active");
+          void container.offsetWidth;
+          container.classList.add("shake-active");
+          setTimeout(() => container.classList.remove("shake-active"), 400);
+        }
+
+        setTimeout(() => { layer.className = "screen-flash"; }, 220);
+      },
+
+      spawnFloatingText(text, isPositive) {
+        const container = document.getElementById("game-container");
+        const el = document.createElement("div");
+        el.className = "floating-text";
+        el.innerText = text;
+        el.style.left = "42%";
+        el.style.top = "62%";
+        el.style.color = isPositive ? "#34d399" : "#f87171";
+        container.appendChild(el);
+        setTimeout(() => el.remove(), 950);
+      },
+
+      showToast(text, isPositive = true) {
+        const toast = document.getElementById("game-toast");
+        toast.innerText = text;
+        toast.style.borderColor = isPositive ? "var(--success)" : "var(--danger)";
+        toast.style.display = "block";
+        setTimeout(() => { toast.style.display = "none"; }, 1600);
+      },
+
+      triggerCharacterReaction(speakerName, isCorrect, customPose = null) {
+        const sprite = document.getElementById("active-sprite");
+        if (!sprite) return;
+
+        const charKey = CharacterSprites.identify(speakerName);
+        const roster = CharacterSprites[charKey];
+        let targetPose = customPose || (isCorrect ? roster.correct : roster.wrong);
+        if (targetPose) sprite.src = targetPose;
+
+        sprite.classList.remove("react-bounce", "react-drop");
+        void sprite.offsetWidth;
+        sprite.classList.add(isCorrect ? "react-bounce" : "react-drop");
+
+        if (this.reactionTimeout) clearTimeout(this.reactionTimeout);
+        this.reactionTimeout = setTimeout(() => {
+          if (document.getElementById("active-sprite")) {
+            sprite.classList.remove("react-bounce", "react-drop");
+            if (roster && roster.idle) sprite.src = roster.idle;
+          }
+        }, 1500);
+      }
+    };
+
+    const app = {
+      profile: { studentA: "", studentB: "", classId: "", handle: "" },
+      score: 0,
+      stamina: 100,
+      combo: 0,
+      startTime: null,
+      elapsedOffset: 0,
+      timerInterval: null,
+      unlockedModules: [0],
+      moduleStats: { 0: false, 1: false, 2: false, 3: false, 4: false, 5: false, 6: false },
+      activeModule: null,
+      currentStep: 0,
+      pairEmailData: { claim: [], adjustment: [] },
+
+      init() {
+        VisualFX.init();
+        this.checkExistingSave();
+      },
+
+      checkExistingSave() {
+        const saved = localStorage.getItem("OFFICE_RUN_W6_SAVE");
+        const btnContinue = document.getElementById("btn-title-continue");
+        if (saved && btnContinue) btnContinue.style.display = "block";
+      },
+
+      loadFromTitle() {
+        SoundFX.tap();
+        const success = this.loadGame();
+        if (success) {
+          if (!this.startTime) this.startTime = Date.now();
+          if (!this.timerInterval) this.timerInterval = setInterval(() => this.updateTimer(), 1000);
+          this.returnToMenu();
+        }
+      },
+
+      userGestureStart() {
+        SoundFX.init();
+        SoundFX.tap();
+        this.switchScreen("screen-flash");
+        const video = document.getElementById("flash-video");
+        video.currentTime = 0;
+        video.muted = false;
+        video.play().catch(() => {
+          video.muted = true;
+          video.play().catch(() => this.skipFlash());
+        });
+        video.onended = () => this.skipFlash();
+      },
+
+      playBGM(filename) {
+        const bgm = document.getElementById("bgm-player");
+        if (!bgm.src.endsWith(filename)) {
+          bgm.src = "audio/bgm/" + filename;
+          bgm.volume = 0.25;
+          bgm.play().catch(() => {});
+        }
+      },
+
+      skipFlash() {
+        SoundFX.tap();
+        const video = document.getElementById("flash-video");
+        video.pause();
+        this.switchScreen("screen-title");
+        this.playBGM("bgm_menu.mp3");
+      },
+
+      showRegister() {
+        SoundFX.tap();
+        this.switchScreen("screen-register");
+      },
+
+      promptConfirm() {
+        SoundFX.tap();
+        const a = document.getElementById("reg-student-a").value.trim();
+        const b = document.getElementById("reg-student-b").value.trim();
+        const c = document.getElementById("reg-class").value.trim();
+        const h = document.getElementById("reg-handle").value.trim();
+
+        if (!a || !b || !c || !h) {
+          SoundFX.wrong();
+          VisualFX.flashScreen(false);
+          VisualFX.showToast("All registration fields are required!", false);
+          return;
+        }
+
+        this.profile = { studentA: a, studentB: b, classId: c, handle: h };
+
+        document.getElementById("modal-summary-content").innerHTML = `
+          <strong>Student A (Customer / Nadia):</strong> ${a}<br>
+          <strong>Student B (Staff / Rafi):</strong> ${b}<br>
+          <strong>Class:</strong> ${c}<br>
+          <strong>Trainer Handle:</strong> ${h}
+        `;
+        document.getElementById("modal-confirm").classList.add("active");
+      },
+
+      closeModal(modalId) {
+        SoundFX.tap();
+        document.getElementById(modalId).classList.remove("active");
+      },
+
+      launchMainMenu() {
+        SoundFX.comboJingle();
+        VisualFX.confettiBlast();
+        this.closeModal("modal-confirm");
+        VisualFX.resize();
+        if (!this.startTime) this.startTime = Date.now();
+        if (!this.timerInterval) this.timerInterval = setInterval(() => this.updateTimer(), 1000);
+        this.returnToMenu();
+      },
+
+      returnToMenu() {
+        SoundFX.whoosh();
+        this.switchScreen("screen-menu");
+        this.playBGM("bgm_menu.mp3");
+        this.updateHUD();
+        this.refreshMenuBadges();
+      },
+
+      tapDinaGreeting() {
+        SoundFX.tap();
+        const greetings = [
+          { speaker: "Maya (Senior Specialist)", text: "Complaint reports the problem; Claim requests the fix; Adjustment offers the solution!", pose: "images/characters/maya_pleased.png" },
+          { speaker: "Mr. Arman (Supervisor)", text: "Always answer the 3 questions: What was expected? What happened? What solution is needed?", pose: "images/characters/arman_approving.png" },
+          { speaker: "Maya (Senior Specialist)", text: "Remember: An adjustment offer is not an agreement until the customer accepts it!", pose: "images/characters/maya_thinking.png" }
+        ];
+        const pick = greetings[Math.floor(Math.random() * greetings.length)];
+        document.getElementById("menu-bubble-speaker").innerText = pick.speaker;
+        document.getElementById("menu-bubble-text").innerText = `"${pick.text}"`;
+
+        const sprite = document.getElementById("menu-dina-sprite");
+        sprite.src = pick.pose;
+        sprite.classList.add("react-bounce");
+        setTimeout(() => {
+          sprite.classList.remove("react-bounce");
+          sprite.src = "images/characters/maya_guide.png";
+        }, 1600);
+      },
+
+      updateTimer() {
+        if (!this.startTime) return;
+        const totalSecs = Math.floor((Date.now() - this.startTime) / 1000) + this.elapsedOffset;
+        const m = String(Math.floor(totalSecs / 60)).padStart(2, '0');
+        const s = String(totalSecs % 60).padStart(2, '0');
+        const formatted = `${m}:${s}`;
+        document.getElementById("mhud-timer").innerText = formatted;
+        document.getElementById("hud-timer").innerText = formatted;
+      },
+
+      updateHUD() {
+        document.getElementById("mhud-handle").innerText = (this.profile.handle || "TRAINER").toUpperCase();
+        document.getElementById("mhud-class").innerText = (this.profile.classId || "CLASS").toUpperCase();
+        document.getElementById("mhud-score").innerText = this.score;
+        document.getElementById("mhud-stamina-val").innerText = `${this.stamina}%`;
+        document.getElementById("mhud-stamina-fill").style.width = `${this.stamina}%`;
+
+        document.getElementById("hud-handle").innerText = (this.profile.handle || "TRAINER").toUpperCase();
+        document.getElementById("hud-class").innerText = (this.profile.classId || "CLASS").toUpperCase();
+        document.getElementById("hud-score").innerText = this.score;
+        document.getElementById("stamina-text").innerText = `${this.stamina}%`;
+        document.getElementById("stamina-fill").style.width = `${this.stamina}%`;
+
+        const comboEls = [document.getElementById("mhud-combo"), document.getElementById("hud-combo")];
+        comboEls.forEach(el => {
+          if (this.combo >= 2) {
+            el.style.display = "inline-block";
+            el.innerText = `🔥 COMBO x${this.combo}`;
+          } else {
+            el.style.display = "none";
+          }
+        });
+      },
+
+      rewardAnswer(speakerName, points) {
+        this.combo++;
+        const bonus = (this.combo >= 3) ? 50 : 0;
+        const finalPts = points + bonus;
+        this.score += finalPts;
+        this.stamina = Math.min(100, this.stamina + 4);
+
+        SoundFX.correct();
+        VisualFX.flashScreen(true);
+        VisualFX.confettiBlast();
+        VisualFX.triggerCharacterReaction(speakerName, true);
+
+        const floatMsg = (this.combo >= 3) ? `+${finalPts} (🔥x${this.combo})` : `+${finalPts} PTS`;
+        VisualFX.spawnFloatingText(floatMsg, true);
+        this.updateHUD();
+      },
+
+      penalizeAnswer(speakerName, penaltyPts, staminaDmg, customPose = null) {
+        this.combo = 0;
+        this.score = Math.max(0, this.score - penaltyPts);
+        this.stamina = Math.max(10, this.stamina - staminaDmg);
+
+        SoundFX.wrong();
+        VisualFX.flashScreen(false);
+        VisualFX.triggerCharacterReaction(speakerName, false, customPose);
+        VisualFX.spawnFloatingText(`-${penaltyPts} PTS`, false);
+        this.updateHUD();
+      },
+
+      refreshMenuBadges() {
+        const mapping = [
+          { id: 1, card: "card-mod-1", badge: "badge-mod-1" },
+          { id: 2, card: "card-mod-2", badge: "badge-mod-2" },
+          { id: 3, card: "card-mod-3", badge: "badge-mod-3" },
+          { id: 4, card: "card-mod-4", badge: "badge-mod-4" },
+          { id: 5, card: "card-mod-5", badge: "badge-mod-5" },
+          { id: 6, card: "card-mod-6", badge: "badge-mod-6" }
+        ];
+
+        mapping.forEach(item => {
+          const elCard = document.getElementById(item.card);
+          const elBadge = document.getElementById(item.badge);
+          if (this.unlockedModules.includes(item.id)) {
+            elCard.classList.remove("locked");
+            if (this.moduleStats[item.id]) {
+              elBadge.innerText = "PASSED";
+              elBadge.style.color = "#38bdf8";
+            } else {
+              elBadge.innerText = "OPEN";
+              elBadge.style.color = "#34d399";
+            }
+          } else {
+            elCard.classList.add("locked");
+            elBadge.innerText = "LOCKED";
+            elBadge.style.color = "#94a3b8";
+          }
+        });
+      },
+
+      openProgressModal() {
+        SoundFX.tap();
+        const totalSecs = this.startTime 
+          ? Math.floor((Date.now() - this.startTime) / 1000) + this.elapsedOffset 
+          : this.elapsedOffset;
+        const m = String(Math.floor(totalSecs / 60)).padStart(2, '0');
+        const s = String(totalSecs % 60).padStart(2, '0');
+
+        const stageNames = [
+          "0. Three Core Terms",
+          "1. Essential Word Bank (10 Qs)",
+          "2. Helpful Sentence Patterns (10 Qs)",
+          "3. Model Case: Order 206 (10 Scenarios)",
+          "4. Transcription Precision (10 Qs)",
+          "5. Customer Triage Dilemmas (10 Rounds)",
+          "6. Activity D: Paired Simulation"
+        ];
+
+        let html = `
+          <div><strong>Trainer Handle:</strong> ${(this.profile.handle || "TRAINER").toUpperCase()}</div>
+          <div><strong>Total Playtime:</strong> <span style="color:#2563eb; font-weight:800;">${m}:${s}</span></div>
+          <div><strong>Current Score:</strong> <span style="color:#d97706; font-weight:900;">${this.score} PTS</span></div>
+          <div><strong>Stamina (Accuracy):</strong> ${this.stamina}%</div>
+          <hr style="margin: 8px 0; border: none; border-top: 1px dashed #cbd5e1;">
+          <div style="font-weight: 800; margin-bottom: 4px;">STAGE CLEAR STATUS:</div>
+        `;
+
+        stageNames.forEach((name, idx) => {
+          const cleared = this.moduleStats[idx];
+          const unlocked = this.unlockedModules.includes(idx);
+          const icon = cleared ? "✅ PASSED" : (unlocked ? "🔓 IN PROGRESS" : "🔒 LOCKED");
+          const color = cleared ? "#059669" : (unlocked ? "#0284c7" : "#64748b");
+          html += `<div style="display:flex; justify-content:space-between; margin-bottom: 2px;">
+            <span>${name}:</span><strong style="color:${color};">${icon}</strong>
+          </div>`;
+        });
+
+        document.getElementById("progress-summary-content").innerHTML = html;
+        document.getElementById("modal-progress").classList.add("active");
+      },
+
+      saveGame() {
+        SoundFX.tap();
+        const currentElapsed = this.startTime 
+          ? Math.floor((Date.now() - this.startTime) / 1000) + this.elapsedOffset 
+          : this.elapsedOffset;
+
+        const payload = {
+          profile: this.profile,
+          score: this.score,
+          stamina: this.stamina,
+          elapsedSecs: currentElapsed,
+          unlockedModules: this.unlockedModules,
+          moduleStats: this.moduleStats,
+          pairEmailData: this.pairEmailData
+        };
+        localStorage.setItem("OFFICE_RUN_W6_SAVE", JSON.stringify(payload));
+        VisualFX.spawnFloatingText("SAVED!", true);
+        VisualFX.showToast("Progress saved to browser Local Slot!", true);
+        this.checkExistingSave();
+      },
+
+      loadGame() {
+        SoundFX.tap();
+        const raw = localStorage.getItem("OFFICE_RUN_W6_SAVE");
+        if (!raw) {
+          SoundFX.wrong();
+          VisualFX.showToast("No saved session records found!", false);
+          return false;
+        }
+        try {
+          const data = JSON.parse(raw);
+          this.profile = data.profile || { studentA: "", studentB: "", classId: "", handle: "" };
+          this.score = data.score || 0;
+          this.stamina = data.stamina !== undefined ? data.stamina : 100;
+          this.unlockedModules = data.unlockedModules || [0];
+          this.moduleStats = data.moduleStats || { 0: false, 1: false, 2: false, 3: false, 4: false, 5: false, 6: false };
+          this.pairEmailData = data.pairEmailData || { claim: [], adjustment: [] };
+          this.elapsedOffset = data.elapsedSecs || 0;
+          this.startTime = Date.now();
+          this.updateHUD();
+          this.refreshMenuBadges();
+          SoundFX.comboJingle();
+          VisualFX.confettiBlast();
+          VisualFX.showToast(`Trainer ${this.profile.handle || "Player"} progress restored!`, true);
+          return true;
+        } catch (e) {
+          SoundFX.wrong();
+          VisualFX.showToast("Corrupted save record!", false);
+          return false;
+        }
+      },
+
+      startModule(modKey) {
+        SoundFX.whoosh();
+        this.activeModule = modKey;
+        this.currentStep = 0;
+        this.switchScreen("screen-game");
+
+        if (modKey === 'grammar') {
+          this.playBGM("bgm_office_daily.mp3");
+          this.runMicroTutorials();
+        } else if (modKey === 'drill') {
+          if (!this.unlockedModules.includes(1)) return;
+          this.playBGM("bgm_training.mp3");
+          this.runTargetedGrammarDrill();
+        } else if (modKey === 'jumble') {
+          if (!this.unlockedModules.includes(2)) return;
+          this.playBGM("bgm_training.mp3");
+          this.runJumbledSentences();
+        } else if (modKey === 'email') {
+          if (!this.unlockedModules.includes(3)) return;
+          this.playBGM("bgm_training.mp3");
+          this.runEmailArchitecture();
+        } else if (modKey === 'transcribe') {
+          if (!this.unlockedModules.includes(4)) return;
+          this.playBGM("bgm_duel.mp3");
+          this.runTranscriptionEngine();
+        } else if (modKey === 'capstone') {
+          if (!this.unlockedModules.includes(5)) return;
+          this.playBGM("bgm_duel.mp3");
+          this.runMsLeeCapstone();
+        } else if (modKey === 'pair') {
+          if (!this.unlockedModules.includes(6)) return;
+          this.playBGM("bgm_training.mp3");
+          this.runExercise8PairSimulation();
+        }
+      },
+
+      /* MODULE 0: THREE CORE TERMS (MICRO-TUTORIAL) */
+      runMicroTutorials() {
+        document.getElementById("game-bg").style.backgroundImage = "url('images/backgrounds/bg_manager_office.jpg')";
+
+        const tutorialSteps = [
+          {
+            speaker: "MAYA (Senior Specialist)",
+            sprite: "images/characters/maya_guide.png",
+            text: "Welcome to Meeting 6! When dealing with workplace problems, we rely on three key terms: Complaint, Claim, and Adjustment.",
+            options: [{ label: "Explain the Three Terms >>", next: 1 }]
+          },
+          {
+            speaker: "MAYA (Senior Specialist)",
+            sprite: "images/characters/maya_guide.png",
+            text: "A Complaint tells someone about a problem. A Claim requests a solution. And an Adjustment is the action offered to solve it!",
+            options: [{ label: "Review The Simple Email Plan >>", next: 2 }]
+          },
+          {
+            speaker: "MR. ARMAN (Supervisor)",
+            sprite: "images/characters/arman_instruct.png",
+            text: "Before writing, answer three questions: 1. What did I expect? 2. What happened? 3. What solution do I need?",
+            options: [{ label: "Learn Deadlines & Politeness >>", next: 3 }]
+          },
+          {
+            speaker: "MR. ARMAN (Supervisor)",
+            sprite: "images/characters/arman_instruct.png",
+            text: "Always be polite! Say 'Could you please replace them?' and use 'by [Date]' for deadlines. Never shout or blame!",
+            options: [{ label: "Critical Rule: Adjustment Offers >>", next: 4 }]
+          },
+          {
+            speaker: "MAYA (Senior Specialist)",
+            sprite: "images/characters/maya_thinking.png",
+            text: "Remember: An adjustment offer is NOT an agreement until the customer accepts it! Always ask: 'Please let me know if this solution works for you.'",
+            options: [{ label: "Take Quick Term Check >>", next: 5 }]
+          },
+          {
+            speaker: "MR. ARMAN (Supervisor)",
+            sprite: "images/characters/arman_approving.png",
+            text: "Quick Check (Activity A): What is 'Could you replace the three broken cups?'",
+            options: [
+              { label: "A) Complaint (tells about problem)", correct: false, feedback: "Incorrect. Reporting the problem is a complaint." },
+              { label: "B) Claim (request for a solution)", correct: true, feedback: "Spot on! Asking for a replacement is a Claim." },
+              { label: "C) Adjustment (action offered to fix it)", correct: false, feedback: "Incorrect. The supplier's offered solution is an adjustment." }
+            ]
+          }
+        ];
+
+        const renderTut = (idx) => {
+          if (idx >= tutorialSteps.length) {
+            this.moduleStats[0] = true;
+            if (!this.unlockedModules.includes(1)) this.unlockedModules.push(1);
+            SoundFX.comboJingle();
+            VisualFX.confettiBlast();
+            VisualFX.showToast("Tutorial Cleared! Essential Word Bank Unlocked.", true);
+            setTimeout(() => this.returnToMenu(), 900);
+            return;
+          }
+
+          const s = tutorialSteps[idx];
+          document.getElementById("dialogue-speaker").innerText = s.speaker;
+          document.getElementById("dialogue-body").innerText = s.text;
+          document.getElementById("active-sprite").src = s.sprite;
+
+          const body = document.getElementById("interactive-body");
+          body.innerHTML = "";
+          const optWrap = document.createElement("div");
+          optWrap.className = "quiz-options";
+
+          s.options.forEach(opt => {
+            const btn = document.createElement("button");
+            btn.className = "quiz-btn";
+            btn.innerText = opt.label;
+            btn.onclick = () => {
+              if (opt.next !== undefined) {
+                SoundFX.tap();
+                renderTut(opt.next);
+              } else {
+                if (opt.correct) {
+                  btn.classList.add("btn-btn-correct");
+                  VisualFX.triggerCharacterReaction("arman", true);
+                  SoundFX.correct();
+                  VisualFX.flashScreen(true);
+                  VisualFX.confettiBlast();
+                  VisualFX.showToast(opt.feedback, true);
+                  setTimeout(() => renderTut(idx + 1), 600);
+                } else {
+                  btn.classList.add("btn-btn-wrong");
+                  VisualFX.triggerCharacterReaction("arman", false);
+                  SoundFX.wrong();
+                  VisualFX.flashScreen(false);
+                  VisualFX.showToast(opt.feedback, false);
+                }
+              }
+            };
+            optWrap.appendChild(btn);
+          });
+          body.appendChild(optWrap);
+        };
+
+        renderTut(0);
+      },
+
+      /* MODULE 1: ESSENTIAL WORD BANK DRILL (10 Items) */
+      runTargetedGrammarDrill() {
+        document.getElementById("game-bg").style.backgroundImage = "url('images/backgrounds/bg_open_office.jpg')";
+
+        const drillBank = [
+          { prompt: "The items a customer asked to buy are called an ______.", opts: ["order", "solution", "damage"], ans: 0, exp: "Order = the things a customer asked to buy." },
+          { prompt: "The box arrived with broken items. The cups are ______.", opts: ["wrong", "damaged", "check"], ans: 1, exp: "Damaged = broken or not in good condition." },
+          { prompt: "Could you ______ the five defective notebooks?", opts: ["replace", "replacing", "to replace"], ans: 0, exp: "Base form 'replace' follows modal 'could you'." },
+          { prompt: "We will ______ the warehouse records to see what happened.", opts: ["check", "order", "solution"], ans: 0, exp: "Check = look to see if something is correct." },
+          { prompt: "A way to fix a customer problem is called a ______.", opts: ["order", "solution", "complaint"], ans: 1, exp: "Solution = a way to fix a problem." },
+          { prompt: "We need the replacement items ______ Thursday.", opts: ["until", "by", "on"], ans: 1, exp: "Use 'by [Date]' for deadlines." },
+          { prompt: "Thank you for ______ us about the problem.", opts: ["tell", "telling", "to tell"], ans: 1, exp: "Preposition 'for' takes the -ing form." },
+          { prompt: "We received 20 notebooks, ______ five have missing pages.", opts: ["but", "so", "because"], ans: 0, exp: "Use 'but' to introduce the observed problem." },
+          { prompt: "We can send five new notebooks by Thursday ______ free.", opts: ["at", "with", "for"], ans: 2, exp: "The correct idiom is 'for free'." },
+          { prompt: "Please let me know if this solution ______ for you.", opts: ["works", "working", "work"], ans: 0, exp: "Singular third person: 'this solution works for you'." }
+        ];
+
+        let qIdx = 0;
+        const renderQ = () => {
+          if (qIdx >= drillBank.length) {
+            this.moduleStats[1] = true;
+            if (!this.unlockedModules.includes(2)) this.unlockedModules.push(2);
+            SoundFX.comboJingle();
+            VisualFX.confettiBlast();
+            VisualFX.showToast("Word Bank Mastered! Helpful Sentence Patterns Unlocked.", true);
+            setTimeout(() => this.returnToMenu(), 900);
+            return;
+          }
+
+          const q = drillBank[qIdx];
+          document.getElementById("dialogue-speaker").innerText = "RAFI (Intern)";
+          document.getElementById("active-sprite").src = "images/characters/rafi_serious.png";
+          document.getElementById("dialogue-body").innerText = `[Question ${qIdx + 1}/10] "${q.prompt}"`;
+
+          const body = document.getElementById("interactive-body");
+          body.innerHTML = "";
+          const optWrap = document.createElement("div");
+          optWrap.className = "quiz-options";
+
+          q.opts.forEach((o, i) => {
+            const btn = document.createElement("button");
+            btn.className = "quiz-btn";
+            btn.innerText = `${String.fromCharCode(65 + i)}) ${o}`;
+            btn.onclick = () => {
+              if (i === q.ans) {
+                btn.classList.add("btn-btn-correct");
+                this.rewardAnswer("rafi", 50);
+                VisualFX.showToast(q.exp, true);
+              } else {
+                btn.classList.add("btn-btn-wrong");
+                this.penalizeAnswer("rafi", 20, 8);
+                VisualFX.showToast("Incorrect! " + q.exp, false);
+              }
+              setTimeout(() => { qIdx++; renderQ(); }, 500);
+            };
+            optWrap.appendChild(btn);
+          });
+          body.appendChild(optWrap);
+        };
+
+        renderQ();
+      },
+
+      /* MODULE 2: HELPFUL SENTENCE PATTERNS (10 Jumbles) */
+      runJumbledSentences() {
+        document.getElementById("game-bg").style.backgroundImage = "url('images/backgrounds/bg_open_office.jpg')";
+
+        const puzzles = [
+          { target: ["I", "received", "20 notebooks,", "but five", "have missing pages."], label: "Describe problem (Lina Order 206)" },
+          { target: ["We", "need them", "for our class", "on Friday."], label: "Explain why it matters" },
+          { target: ["Could", "you", "replace", "the five notebooks", "by Thursday?"], label: "Ask for a solution" },
+          { target: ["Please", "let me know", "if this", "is possible."], label: "Polite check for feasibility" },
+          { target: ["Thank", "you", "for telling us", "about the problem."], label: "Staff polite opening" },
+          { target: ["We", "checked", "the order", "and confirmed", "the damage."], label: "Staff verifying facts" },
+          { target: ["I", "am", "sorry", "for", "the problem."], label: "Staff polite apology" },
+          { target: ["We", "can send", "five new notebooks", "by Thursday", "for free."], label: "Offer a free replacement" },
+          { target: ["Please", "let me know", "if this solution", "works for you."], label: "Ask if solution is acceptable" },
+          { target: ["I", "will check", "the order", "and reply", "by tomorrow."], label: "Staff saying they are checking" }
+        ];
+
+        let pIdx = 0;
+        const renderPuzzle = () => {
+          if (pIdx >= puzzles.length) {
+            this.moduleStats[2] = true;
+            if (!this.unlockedModules.includes(3)) this.unlockedModules.push(3);
+            SoundFX.comboJingle();
+            VisualFX.confettiBlast();
+            VisualFX.showToast("Sentence Patterns Mastered! Model Case Unlocked.", true);
+            setTimeout(() => this.returnToMenu(), 900);
+            return;
+          }
+
+          const currentP = puzzles[pIdx];
+          document.getElementById("dialogue-speaker").innerText = "MAYA (Senior Specialist)";
+          document.getElementById("active-sprite").src = "images/characters/maya_thinking.png";
+          document.getElementById("dialogue-body").innerText = `[Pattern ${pIdx + 1}/10] Assemble: "${currentP.label}"`;
+
+          const body = document.getElementById("interactive-body");
+          body.innerHTML = `
+            <div class="assembled-box" id="assembled-chips"></div>
+            <div class="chip-container" id="source-chips"></div>
+            <div style="display: flex; gap: 8px; margin-top: 8px;">
+              <button class="btn-nav-mini" style="flex:1;" id="btn-undo">UNDO</button>
+              <button class="btn-nav-mini" style="flex:1; background: var(--success);" id="btn-check">SUBMIT</button>
+            </div>
+          `;
+
+          const scrambled = [...currentP.target].sort(() => Math.random() - 0.5);
+          const chosen = [];
+
+          const renderChips = () => {
+            const src = document.getElementById("source-chips");
+            const dst = document.getElementById("assembled-chips");
+            src.innerHTML = "";
+            dst.innerHTML = "";
+
+            scrambled.forEach((word, idx) => {
+              const chip = document.createElement("div");
+              chip.className = "word-chip";
+              chip.innerText = word;
+              chip.onclick = () => {
+                SoundFX.tap();
+                chosen.push(word);
+                scrambled.splice(idx, 1);
+                renderChips();
+              };
+              src.appendChild(chip);
+            });
+
+            chosen.forEach((word) => {
+              const chip = document.createElement("div");
+              chip.className = "word-chip";
+              chip.style.background = "#10b981";
+              chip.innerText = word;
+              dst.appendChild(chip);
+            });
+          };
+
+          renderChips();
+
+          document.getElementById("btn-undo").onclick = () => {
+            if (chosen.length > 0) {
+              SoundFX.tap();
+              scrambled.push(chosen.pop());
+              renderChips();
+            }
+          };
+
+          document.getElementById("btn-check").onclick = () => {
+            const isMatch = chosen.length === currentP.target.length && chosen.every((w, i) => w === currentP.target[i]);
+            if (isMatch) {
+              this.rewardAnswer("maya", 100);
+              VisualFX.showToast("Pattern accurately assembled!", true);
+              setTimeout(() => { pIdx++; renderPuzzle(); }, 550);
+            } else {
+              this.penalizeAnswer("maya", 30, 15);
+              VisualFX.showToast("Incorrect pattern sequence! Follow the formula.", false);
+            }
+          };
+        };
+
+        renderPuzzle();
+      },
+
+      /* MODULE 3: MODEL CASE & CLAIM ARCHITECTURE (10 Scenarios) */
+      runEmailArchitecture() {
+        document.getElementById("game-bg").style.backgroundImage = "url('images/backgrounds/bg_open_office.jpg')";
+
+        const emailScenarios = [
+          {
+            title: "Scenario 1: Handout Model (Lina Order 206 Notebooks)",
+            blocks: [
+              { id: 1, label: "Slot 1: Subject Line", text: "Subject: Missing pages — Order 206" },
+              { id: 2, label: "Slot 2: Describe Problem", text: "I received 20 notebooks, but five have missing pages." },
+              { id: 3, label: "Slot 3: Explain Impact", text: "We need them for our class on Friday." },
+              { id: 4, label: "Slot 4: Ask Solution & Check", text: "Could you replace the five notebooks by Thursday? Please let me know if this is possible." }
+            ]
+          },
+          {
+            title: "Scenario 2: Activity C (10 T-Shirts for Student Event)",
+            blocks: [
+              { id: 1, label: "Slot 1: Subject Line", text: "Subject: Wrong size shirts — Order T-88" },
+              { id: 2, label: "Slot 2: Describe Problem", text: "I ordered 10 T-shirts, but two shirts are the wrong size." },
+              { id: 3, label: "Slot 3: Explain Impact", text: "We need them for our student event on Friday." },
+              { id: 4, label: "Slot 4: Ask Solution & Check", text: "Could you replace the two shirts by Thursday? Please let me know." }
+            ]
+          },
+          {
+            title: "Scenario 3: Activity D Baseline (12 Ceramic Mugs)",
+            blocks: [
+              { id: 1, label: "Slot 1: Subject Line", text: "Subject: Broken mugs delivery — Order 310" },
+              { id: 2, label: "Slot 2: Describe Problem", text: "I ordered 12 mugs, but three arrived broken." },
+              { id: 3, label: "Slot 3: Explain Impact", text: "We need them for our event on Saturday." },
+              { id: 4, label: "Slot 4: Ask Solution & Check", text: "Could you replace the three mugs by Friday? Please let me know if this is possible." }
+            ]
+          },
+          {
+            title: "Scenario 4: Office Paper Order (Order P-40)",
+            blocks: [
+              { id: 1, label: "Slot 1: Subject Line", text: "Subject: Damaged paper boxes — Order P-40" },
+              { id: 2, label: "Slot 2: Describe Problem", text: "I received five boxes of paper, but two are wet and damaged." },
+              { id: 3, label: "Slot 3: Explain Impact", text: "We need them for printing exam papers on Wednesday." },
+              { id: 4, label: "Slot 4: Ask Solution & Check", text: "Could you send two new boxes by Tuesday? Please let me know." }
+            ]
+          },
+          {
+            title: "Scenario 5: Seminar Folders (Order F-12)",
+            blocks: [
+              { id: 1, label: "Slot 1: Subject Line", text: "Subject: Defective folders — Order F-12" },
+              { id: 2, label: "Slot 2: Describe Problem", text: "I ordered 30 seminar folders, but six have broken clips." },
+              { id: 3, label: "Slot 3: Explain Impact", text: "We need them for the meeting on Thursday morning." },
+              { id: 4, label: "Slot 4: Ask Solution & Check", text: "Could you replace the six folders by Wednesday? Best regards." }
+            ]
+          },
+          {
+            title: "Scenario 6: Staff ID Badges (Order B-9)",
+            blocks: [
+              { id: 1, label: "Slot 1: Subject Line", text: "Subject: Wrong name spelling — Order B-9" },
+              { id: 2, label: "Slot 2: Describe Problem", text: "I received 15 badges, but three have wrong names." },
+              { id: 3, label: "Slot 3: Explain Impact", text: "We need them for our training session on Friday." },
+              { id: 4, label: "Slot 4: Ask Solution & Check", text: "Could you replace the three badges by Thursday? Please let me know." }
+            ]
+          },
+          {
+            title: "Scenario 7: Printer Ink Cartridges (Order C-22)",
+            blocks: [
+              { id: 1, label: "Slot 1: Subject Line", text: "Subject: Damaged toner cartridge — Order C-22" },
+              { id: 2, label: "Slot 2: Describe Problem", text: "I ordered four cartridges, but one is leaking black ink." },
+              { id: 3, label: "Slot 3: Explain Impact", text: "Our department needs it for daily office work." },
+              { id: 4, label: "Slot 4: Ask Solution & Check", text: "Could you replace the leaking cartridge by tomorrow noon?" }
+            ]
+          },
+          {
+            title: "Scenario 8: Conference Pens (Order P-100)",
+            blocks: [
+              { id: 1, label: "Slot 1: Subject Line", text: "Subject: Defective pens — Order P-100" },
+              { id: 2, label: "Slot 2: Describe Problem", text: "I ordered 50 pens, but ten do not write properly." },
+              { id: 3, label: "Slot 3: Explain Impact", text: "We need them for workshop participants on Monday." },
+              { id: 4, label: "Slot 4: Ask Solution & Check", text: "Could you send ten working pens by Friday afternoon?" }
+            ]
+          },
+          {
+            title: "Scenario 9: Desk Clocks (Order D-5)",
+            blocks: [
+              { id: 1, label: "Slot 1: Subject Line", text: "Subject: Broken clock glass — Order D-5" },
+              { id: 2, label: "Slot 2: Describe Problem", text: "I received eight desk clocks, but two arrived with broken glass." },
+              { id: 3, label: "Slot 3: Explain Impact", text: "We need them as gifts for speakers on Saturday." },
+              { id: 4, label: "Slot 4: Ask Solution & Check", text: "Could you replace the two clocks by Friday? Please let me know." }
+            ]
+          },
+          {
+            title: "Scenario 10: Participant Lanyards (Order L-50)",
+            blocks: [
+              { id: 1, label: "Slot 1: Subject Line", text: "Subject: Wrong color lanyards — Order L-50" },
+              { id: 2, label: "Slot 2: Describe Problem", text: "I ordered 40 blue lanyards, but you sent 40 red lanyards." },
+              { id: 3, label: "Slot 3: Explain Impact", text: "Our university event begins on Friday morning." },
+              { id: 4, label: "Slot 4: Ask Solution & Check", text: "Could you replace them with blue lanyards by Thursday? Thank you." }
+            ]
+          }
+        ];
+
+        let scenIdx = 0;
+        const renderScenario = () => {
+          if (scenIdx >= emailScenarios.length) {
+            this.moduleStats[3] = true;
+            if (!this.unlockedModules.includes(4)) this.unlockedModules.push(4);
+            SoundFX.comboJingle();
+            VisualFX.confettiBlast();
+            VisualFX.showToast("All Scenarios Cleared! Transcription Engine Unlocked.", true);
+            setTimeout(() => this.returnToMenu(), 900);
+            return;
+          }
+
+          const currentScen = emailScenarios[scenIdx];
+          let assigned = [null, null, null, null];
+          let randomizedBank = [...currentScen.blocks].sort(() => Math.random() - 0.5);
+
+          const body = document.getElementById("interactive-body");
+          document.getElementById("dialogue-speaker").innerText = "MAYA (Senior Specialist)";
+          document.getElementById("active-sprite").src = "images/characters/maya_thinking.png";
+          document.getElementById("dialogue-body").innerText = `[Email ${scenIdx + 1}/10] ${currentScen.title}. Build the 4-part email:`;
+
+          const renderUI = () => {
+            const unassigned = randomizedBank.filter(b => !assigned.includes(b));
+            body.innerHTML = `
+              <div class="email-editor-container">
+                <div class="email-target-slots">
+                  ${assigned.map((block, i) => `
+                    <div class="email-slot ${block ? 'filled' : ''}" onclick="app.unassignEmailSlot(${i})">
+                      <strong>${currentScen.blocks[i].label}:</strong><br>${block ? block.text : '<em>[EMPTY - TAP BLOCK TO FILL]</em>'}
+                    </div>
+                  `).join('')}
+                </div>
+                <div class="email-bank-tray">
+                  <div style="font-size: 10px; font-weight: 800; color: #475569;">AVAILABLE BLOCKS (TAP TO INSERT):</div>
+                  ${unassigned.map(b => `
+                    <div class="email-source-chip" onclick="app.assignEmailBlock(${b.id})">${b.text}</div>
+                  `).join('')}
+                </div>
+              </div>
+              <button class="btn-uma-main" style="width: 100%; font-size: 13px; padding: 10px; margin-top: 8px;" onclick="app.evaluateEmail()">SUBMIT EMAIL</button>
+            `;
+          };
+
+          this.assignEmailBlock = (blockId) => {
+            SoundFX.tap();
+            const firstEmpty = assigned.findIndex(slot => slot === null);
+            if (firstEmpty === -1) return;
+            assigned[firstEmpty] = currentScen.blocks.find(b => b.id === blockId);
+            renderUI();
+          };
+
+          this.unassignEmailSlot = (slotIdx) => {
+            if (assigned[slotIdx] === null) return;
+            SoundFX.tap();
+            assigned[slotIdx] = null;
+            renderUI();
+          };
+
+          this.evaluateEmail = () => {
+            if (!assigned.every(b => b !== null)) {
+              VisualFX.showToast("Fill all 4 slots first!", false);
+              return;
+            }
+
+            const isCorrect = assigned.every((b, i) => b.id === currentScen.blocks[i].id);
+            if (isCorrect) {
+              this.rewardAnswer("maya", 120);
+              VisualFX.showToast("Email plan verified! (+120 PTS)", true);
+              setTimeout(() => { scenIdx++; renderScenario(); }, 600);
+            } else {
+              this.penalizeAnswer("maya", 30, 12);
+              VisualFX.showToast("Incorrect order! Follow: Subject -> Problem -> Impact -> Request.", false);
+              assigned = [null, null, null, null];
+              randomizedBank = [...currentScen.blocks].sort(() => Math.random() - 0.5);
+              renderUI();
+            }
+          };
+
+          renderUI();
+        };
+
+        renderScenario();
+      },
+
+      /* MODULE 4: TRANSCRIPTION ENGINE (10 Handout-Aligned Sentences) */
+      runTranscriptionEngine() {
+        document.getElementById("game-bg").style.backgroundImage = "url('images/backgrounds/bg_manager_office.jpg')";
+
+        const rawTypingBank = [
+          {
+            problem: "Lina tells Mr. Ali about the notebooks with missing pages.",
+            opts: [
+              { text: "I received 20 notebooks, but five have missing pages.", correct: true },
+              { text: "Your staff ruined our class and we hate you.", correct: false },
+              { text: "We will never buy notebooks from your company again.", correct: false }
+            ],
+            target: "I received 20 notebooks, but five have missing pages.",
+            cues: { cap: "Start with uppercase 'I'.", punct: "Put a period (.) at the end.", spell: "Check 'received' or 'notebooks'." }
+          },
+          {
+            problem: "Lina asks Mr. Ali for replacements by Thursday.",
+            opts: [
+              { text: "Could you replace the five notebooks by Thursday?", correct: true },
+              { text: "Could you to replace notebooks until Thursday morning?", correct: false },
+              { text: "Replace them now or we report you to police.", correct: false }
+            ],
+            target: "Could you replace the five notebooks by Thursday?",
+            cues: { cap: "Start with uppercase 'C'.", punct: "Put a question mark (?) at the end.", spell: "Check spelling of 'replace'." }
+          },
+          {
+            problem: "Mr. Ali replies with an apology for the notebooks.",
+            opts: [
+              { text: "I am sorry for the problem.", correct: true },
+              { text: "It is not our problem so go away.", correct: false },
+              { text: "We will give you free money right now.", correct: false }
+            ],
+            target: "I am sorry for the problem.",
+            cues: { cap: "Start with uppercase 'I'.", punct: "Put a period (.) at the end.", spell: "Check 'sorry' and 'problem'." }
+          },
+          {
+            problem: "Mr. Ali offers five free replacement notebooks.",
+            opts: [
+              { text: "We can send five new notebooks by Thursday for free.", correct: true },
+              { text: "Pay extra money if you want new notebooks.", correct: false },
+              { text: "We might deliver them next month maybe.", correct: false }
+            ],
+            target: "We can send five new notebooks by Thursday for free.",
+            cues: { cap: "Start with uppercase 'W'.", punct: "Put a period (.) at the end.", spell: "Check 'notebooks' and 'free'." }
+          },
+          {
+            problem: "Mr. Ali checks if Lina accepts the solution.",
+            opts: [
+              { text: "Please let me know if this solution works for you.", correct: true },
+              { text: "Accept this offer immediately or lose it.", correct: false },
+              { text: "The case is closed and do not email us.", correct: false }
+            ],
+            target: "Please let me know if this solution works for you.",
+            cues: { cap: "Start with uppercase 'P'.", punct: "Put a period (.) at the end.", spell: "Check 'solution' and 'works'." }
+          },
+          {
+            problem: "Activity D: Customer reports broken mugs.",
+            opts: [
+              { text: "I ordered 12 mugs, but three arrived broken.", correct: true },
+              { text: "You broke all my mugs you careless driver.", correct: false },
+              { text: "Every mug in the world is broken today.", correct: false }
+            ],
+            target: "I ordered 12 mugs, but three arrived broken.",
+            cues: { cap: "Start with uppercase 'I'.", punct: "Put a period (.) at the end.", spell: "Check 'ordered' and 'broken'." }
+          },
+          {
+            problem: "Activity D: Customer asks for three replacements by Friday.",
+            opts: [
+              { text: "Could you replace the three mugs by Friday?", correct: true },
+              { text: "Send me free mugs until Friday right now.", correct: false },
+              { text: "Could you to replace three cups on Friday?", correct: false }
+            ],
+            target: "Could you replace the three mugs by Friday?",
+            cues: { cap: "Start with uppercase 'C'.", punct: "Put a question mark (?) at the end.", spell: "Check 'replace' and 'Friday'." }
+          },
+          {
+            problem: "Activity D: Staff confirms replacements at no charge.",
+            opts: [
+              { text: "We can send three replacement mugs by Friday for free.", correct: true },
+              { text: "You must buy three new mugs yourself.", correct: false },
+              { text: "We cannot help you with broken items.", correct: false }
+            ],
+            target: "We can send three replacement mugs by Friday for free.",
+            cues: { cap: "Start with uppercase 'W'.", punct: "Put a period (.) at the end.", spell: "Check 'replacement' and 'mugs'." }
+          },
+          {
+            problem: "Activity B: Doni explains he is checking the order.",
+            opts: [
+              { text: "I will check the order and reply by tomorrow.", correct: true },
+              { text: "I will not check anything today.", correct: false },
+              { text: "Checking orders takes three months.", correct: false }
+            ],
+            target: "I will check the order and reply by tomorrow.",
+            cues: { cap: "Start with uppercase 'I'.", punct: "Put a period (.) at the end.", spell: "Check 'check' and 'reply'." }
+          },
+          {
+            problem: "Activity C: Student asks for two shirts replacement by Thursday.",
+            opts: [
+              { text: "Could you replace the two shirts by Thursday?", correct: true },
+              { text: "Give me new shirts right now immediately.", correct: false },
+              { text: "Could you replacing shirts until Thursday?", correct: false }
+            ],
+            target: "Could you replace the two shirts by Thursday?",
+            cues: { cap: "Start with uppercase 'C'.", punct: "Put a question mark (?) at the end.", spell: "Check 'shirts' and 'Thursday'." }
+          }
+        ];
+
+        let tIdx = 0;
+        const renderTyping = () => {
+          if (tIdx >= rawTypingBank.length) {
+            this.moduleStats[4] = true;
+            if (!this.unlockedModules.includes(5)) this.unlockedModules.push(5);
+            SoundFX.comboJingle();
+            VisualFX.confettiBlast();
+            VisualFX.showToast("Transcription Cleared! Capstone Triage Unlocked.", true);
+            setTimeout(() => this.returnToMenu(), 900);
+            return;
+          }
+
+          const item = rawTypingBank[tIdx];
+          const shuffledOpts = [...item.opts].sort(() => Math.random() - 0.5);
+
+          document.getElementById("dialogue-speaker").innerText = "MR. ARMAN (Supervisor)";
+          document.getElementById("active-sprite").src = "images/characters/arman_instruct.png";
+          document.getElementById("dialogue-body").innerText = `[Task ${tIdx + 1}/10] "${item.problem}" Identify the polite option and TYPE IT EXACTLY:`;
+
+          const body = document.getElementById("interactive-body");
+          body.innerHTML = `
+            <div style="background: #f1f5f9; padding: 7px; border-radius: 8px; font-size: 11px; margin-bottom: 6px;">
+              ${shuffledOpts.map((opt, i) => `<div><strong>${String.fromCharCode(65 + i)}:</strong> ${opt.text}</div>`).join('')}
+            </div>
+            <input type="text" id="type-input" class="typing-terminal-box" placeholder="Type the polite sentence exactly here..." autocomplete="off" />
+            <button class="btn-uma-main" style="width: 100%; font-size: 13px; padding: 10px; margin-top: 8px;" id="btn-verify-type">VERIFY PRECISION</button>
+          `;
+
+          const inputField = document.getElementById("type-input");
+          inputField.focus();
+
+          document.getElementById("btn-verify-type").onclick = () => {
+            const val = inputField.value.trim();
+            if (val === item.target) {
+              this.rewardAnswer("arman", 150);
+              VisualFX.showToast("100% Precision Verified! (+150 PTS)", true);
+              setTimeout(() => { tIdx++; renderTyping(); }, 600);
+            } else {
+              this.penalizeAnswer("arman", 30, 10);
+              if (val.length > 0 && val[0] !== item.target[0]) {
+                VisualFX.showToast(item.cues.cap, false);
+              } else if (!val.endsWith(item.target.slice(-1))) {
+                VisualFX.showToast(item.cues.punct, false);
+              } else {
+                VisualFX.showToast(item.cues.spell, false);
+              }
+            }
+          };
+        };
+
+        renderTyping();
+      },
+
+      /* MODULE 5: CUSTOMER TRIAGE CAPSTONE (10 Scenarios) */
+      runMsLeeCapstone() {
+        document.getElementById("game-bg").style.backgroundImage = "url('images/backgrounds/bg_executive_suite.jpg')";
+
+        const rounds = [
+          {
+            speaker: "CUSTOMER (Lina)",
+            sprite: "images/characters/mslee_strict.png",
+            text: "I received 20 notebooks, but five have missing pages. Our class is on Friday! What will you do?",
+            choices: [
+              { label: "We checked the order and can send five new notebooks by Thursday for free.", pts: 250, correct: true },
+              { label: "We cannot help because you already opened the box.", pts: -150, correct: false },
+              { label: "Buy new notebooks yourself from the bookstore.", pts: -100, correct: false }
+            ]
+          },
+          {
+            speaker: "CUSTOMER (Nadia)",
+            sprite: "images/characters/mslee_strict.png",
+            text: "Three out of twelve mugs arrived broken! Our event is on Saturday. Can you replace them?",
+            choices: [
+              { label: "We apologise for the damage and can deliver three replacement mugs by Friday for free.", pts: 250, correct: true },
+              { label: "Three broken mugs is not a big deal; just use nine mugs.", pts: -150, correct: false },
+              { label: "You must pay cash for the new delivery courier.", pts: -100, correct: false }
+            ]
+          },
+          {
+            speaker: "SUPERVISOR (Mr. Arman)",
+            sprite: "images/characters/arman_instruct.png",
+            text: "Rafi, you sent the adjustment offer email to Lina. Is the case already settled and agreed?",
+            choices: [
+              { label: "No. An adjustment offer is not an agreement until the customer accepts it.", pts: 250, correct: true },
+              { label: "Yes, once we hit send, the case is officially closed.", pts: -150, correct: false },
+              { label: "Customer opinions do not matter after we apologise.", pts: -100, correct: false }
+            ]
+          },
+          {
+            speaker: "CUSTOMER (Event Coordinator)",
+            sprite: "images/characters/mslee_evaluating.png",
+            text: "Two of the ten T-shirts delivered are the wrong size! Can we get them replaced before Thursday?",
+            choices: [
+              { label: "We will check the sizes and deliver two correct shirts by Thursday at no extra cost.", pts: 250, correct: true },
+              { label: "Wear the small shirts anyway for your event.", pts: -150, correct: false },
+              { label: "We will refund one million rupiah immediately right now.", pts: -100, correct: false }
+            ]
+          },
+          {
+            speaker: "STAFF INTERN (Rafi)",
+            sprite: "images/characters/rafi_serious.png",
+            text: "Mr. Arman, how should I close my adjustment email to make sure the customer agrees?",
+            choices: [
+              { label: "'Please let me know if this solution works for you.'", pts: 250, correct: true },
+              { label: "'Do not reply to this email.'", pts: -150, correct: false },
+              { label: "'You must agree with this solution immediately.'", pts: -100, correct: false }
+            ]
+          },
+          {
+            speaker: "CUSTOMER (Office Manager)",
+            sprite: "images/characters/mslee_strict.png",
+            text: "One toner cartridge is leaking black ink inside the sealed box! What is your action?",
+            choices: [
+              { label: "I will check the order and courier a replacement cartridge by tomorrow morning.", pts: 250, correct: true },
+              { label: "You probably shook the box and broke it yourself.", pts: -150, correct: false },
+              { label: "Throw it away; we are closed today.", pts: -100, correct: false }
+            ]
+          },
+          {
+            speaker: "COURIER RIDER",
+            sprite: "images/characters/courier_handover.png",
+            text: "I just delivered the three replacement mugs to Nadia at reception. Is my delivery complete?",
+            choices: [
+              { label: "Please let the customer inspect the mugs to confirm they are undamaged.", pts: 250, correct: true },
+              { label: "Just drop the box on the floor and run away.", pts: -150, correct: false },
+              { label: "Ask the customer for cash tip before leaving.", pts: -100, correct: false }
+            ]
+          },
+          {
+            speaker: "CUSTOMER (Nadia)",
+            sprite: "images/characters/mslee_satisfied.png",
+            text: "I inspected all three replacement mugs. None are cracked, and they look great! Thank you!",
+            choices: [
+              { label: "Thank you, Nadia! We are glad the solution worked for your Saturday event.", pts: 250, correct: true },
+              { label: "Finally, stop bothering us with emails.", pts: -150, correct: false },
+              { label: "Send us a tip for being so nice to you.", pts: -100, correct: false }
+            ]
+          },
+          {
+            speaker: "MAYA (Senior Specialist)",
+            sprite: "images/characters/maya_guide.png",
+            text: "When a customer reports an issue, why do we use 'by Thursday' instead of 'until Thursday'?",
+            choices: [
+              { label: "'By' marks the completion deadline, whereas 'until' means continuous action.", pts: 250, correct: true },
+              { label: "'Until' sounds too polite for customer service.", pts: -150, correct: false },
+              { label: "Both words mean the exact same thing in English.", pts: -100, correct: false }
+            ]
+          },
+          {
+            speaker: "SUPERVISOR (Mr. Arman)",
+            sprite: "images/characters/arman_approving.png",
+            text: "Final checkpoint: What are the three steps to solving a customer problem successfully?",
+            choices: [
+              { label: "State facts clearly, ask for a reasonable fix, and reply politely with next actions.", pts: 250, correct: true },
+              { label: "Argue about blame, ignore emails, and demand immediate money.", pts: -150, correct: false },
+              { label: "Promise unapproved refunds and close tickets before items arrive.", pts: -100, correct: false }
+            ]
+          }
+        ];
+
+        let rIdx = 0;
+        const renderRound = () => {
+          if (rIdx >= rounds.length) {
+            this.moduleStats[5] = true;
+            if (!this.unlockedModules.includes(6)) this.unlockedModules.push(6);
+            SoundFX.comboJingle();
+            VisualFX.confettiBlast();
+            VisualFX.showToast("Customer Triage Cleared! Activity D Simulation Unlocked.", true);
+            setTimeout(() => this.returnToMenu(), 900);
+            return;
+          }
+
+          const r = rounds[rIdx];
+          document.getElementById("dialogue-speaker").innerText = r.speaker;
+          document.getElementById("active-sprite").src = r.sprite;
+          document.getElementById("dialogue-body").innerText = `[Round ${rIdx + 1}/10] "${r.text}"`;
+
+          const shuffled = [...r.choices].sort(() => Math.random() - 0.5);
+          const body = document.getElementById("interactive-body");
+          body.innerHTML = "";
+          const optWrap = document.createElement("div");
+          optWrap.className = "quiz-options";
+
+          shuffled.forEach((ch, i) => {
+            const btn = document.createElement("button");
+            btn.className = "quiz-btn";
+            btn.innerText = `${String.fromCharCode(65 + i)}) '${ch.label}'`;
+            btn.onclick = () => {
+              if (ch.correct) {
+                btn.classList.add("btn-btn-correct");
+                this.rewardAnswer("mslee", ch.pts);
+                setTimeout(() => { rIdx++; renderRound(); }, 500);
+              } else {
+                btn.classList.add("btn-btn-wrong");
+                this.penalizeAnswer("mslee", Math.abs(ch.pts), 20);
+                VisualFX.showToast("Unprofessional response! Aim for polite, factual problem solving.", false);
+              }
+            };
+            optWrap.appendChild(btn);
+          });
+          body.appendChild(optWrap);
+        };
+
+        renderRound();
+      },
+
+      /* MODULE 6: ACTIVITY D PAIRED SIMULATION (12 Mugs Exchange) */
+      runExercise8PairSimulation() {
+        document.getElementById("game-bg").style.backgroundImage = "url('images/backgrounds/bg_conference_room.jpg')";
+
+        const round1Nadia = [
+          {
+            label: "Nadia (Customer) - Sentence 1: The Order & Expected Quantity",
+            chips: ["I", "ordered", "12 mugs", "for an event", "on Saturday."],
+            target: "I ordered 12 mugs for an event on Saturday."
+          },
+          {
+            label: "Nadia (Customer) - Sentence 2: The Observed Problem",
+            chips: ["Three mugs", "arrived", "broken", "inside the box."],
+            target: "Three mugs arrived broken inside the box."
+          },
+          {
+            label: "Nadia (Customer) - Sentence 3: The Reasonable Request",
+            chips: ["Could", "you", "replace", "the three mugs", "by Friday?"],
+            target: "Could you replace the three mugs by Friday?"
+          },
+          {
+            label: "Nadia (Customer) - Sentence 4: Feasibility Check",
+            chips: ["Please", "let me know", "if this", "is possible."],
+            target: "Please let me know if this is possible."
+          }
+        ];
+
+        const round2Rafi = [
+          {
+            label: "Rafi (Staff) - Sentence 1: Polite Acknowledgment",
+            chips: ["Thank", "you", "for telling us", "about the problem."],
+            target: "Thank you for telling us about the problem."
+          },
+          {
+            label: "Rafi (Staff) - Sentence 2: Verification & Apology",
+            chips: ["We", "checked the order", "and apologise", "for the damage."],
+            target: "We checked the order and apologise for the damage."
+          },
+          {
+            label: "Rafi (Staff) - Sentence 3: Free Replacement Offer",
+            chips: ["We", "can send", "three replacement mugs", "by Friday", "for free."],
+            target: "We can send three replacement mugs by Friday for free."
+          },
+          {
+            label: "Rafi (Staff) - Sentence 4: Customer Acceptance Check",
+            chips: ["Please", "let me know", "if this solution", "works for you."],
+            target: "Please let me know if this solution works for you."
+          }
+        ];
+
+        let stagePlayer = 1;
+        let pStep = 0;
+
+        const renderSimStep = () => {
+          const isPlayer1 = (stagePlayer === 1);
+          const currentList = isPlayer1 ? round1Nadia : round2Rafi;
+
+          if (pStep >= currentList.length) {
+            if (isPlayer1) {
+              stagePlayer = 2;
+              pStep = 0;
+              renderHandoverScreen();
+              return;
+            } else {
+              this.moduleStats[6] = true;
+              SoundFX.comboJingle();
+              VisualFX.confettiBlast();
+              VisualFX.showToast("Activity D Paired Emails Verified! Final Report Ready.", true);
+              setTimeout(() => this.openVerification(), 800);
+              return;
+            }
+          }
+
+          const cur = currentList[pStep];
+          const speakerName = isPlayer1 ? "NADIA (Student A - Customer)" : "RAFI (Student B - Staff)";
+          const spriteImg = isPlayer1 ? "images/characters/maya_guide.png" : "images/characters/rafi_serious.png";
+
+          document.getElementById("dialogue-speaker").innerText = speakerName;
+          document.getElementById("active-sprite").src = spriteImg;
+          document.getElementById("dialogue-body").innerText = `[Step ${pStep + 1}/4] ${cur.label}. Step A: Assemble, Step B: Type!`;
+
+          const body = document.getElementById("interactive-body");
+          body.innerHTML = `
+            <div style="font-size: 10px; font-weight: 800; color: #475569; text-transform: uppercase;">Step 1: Tap Chips Into Correct Syntax</div>
+            <div class="assembled-box" id="sim-assembled"></div>
+            <div class="chip-container" id="sim-sources"></div>
+            <div style="display: flex; gap: 8px; margin: 6px 0;">
+              <button class="btn-nav-mini" style="flex:1;" id="sim-undo">UNDO</button>
+              <button class="btn-nav-mini" style="flex:1; background: var(--success);" id="sim-validate">LOCK ORDER</button>
+            </div>
+            <div id="sim-typing-area" style="display: none; border-top: 1px dashed #cbd5e1; padding-top: 6px;">
+              <div style="font-size: 10px; font-weight: 800; color: #1e3a8a; text-transform: uppercase; margin-bottom: 4px;">Step 2: Type Exact String (Check Caps &amp; Period)</div>
+              <input type="text" id="sim-type-input" class="typing-terminal-box" placeholder="Type verified sentence here..." autocomplete="off" />
+              <button class="btn-uma-main" style="width: 100%; font-size: 13px; padding: 9px; margin-top: 6px;" id="sim-commit">COMMIT TO OFFICIAL EMAIL</button>
+            </div>
+          `;
+
+          const scrambled = [...cur.chips].sort(() => Math.random() - 0.5);
+          const chosen = [];
+
+          const renderChipsUI = () => {
+            const src = document.getElementById("sim-sources");
+            const dst = document.getElementById("sim-assembled");
+            src.innerHTML = "";
+            dst.innerHTML = "";
+
+            scrambled.forEach((item, idx) => {
+              const chip = document.createElement("div");
+              chip.className = "word-chip";
+              chip.innerText = item;
+              chip.onclick = () => {
+                SoundFX.tap();
+                chosen.push(item);
+                scrambled.splice(idx, 1);
+                renderChipsUI();
+              };
+              src.appendChild(chip);
+            });
+
+            chosen.forEach((item) => {
+              const chip = document.createElement("div");
+              chip.className = "word-chip";
+              chip.style.background = "#10b981";
+              chip.innerText = item;
+              dst.appendChild(chip);
+            });
+          };
+
+          renderChipsUI();
+
+          document.getElementById("sim-undo").onclick = () => {
+            if (chosen.length > 0) {
+              SoundFX.tap();
+              scrambled.push(chosen.pop());
+              renderChipsUI();
+            }
+          };
+
+          document.getElementById("sim-validate").onclick = () => {
+            const isMatch = chosen.length === cur.chips.length && chosen.every((w, i) => w === cur.chips[i]);
+            if (isMatch) {
+              SoundFX.correct();
+              VisualFX.flashScreen(true);
+              VisualFX.showToast("Chips aligned! Now type into the official email record.", true);
+              document.getElementById("sim-typing-area").style.display = "block";
+              document.getElementById("sim-validate").style.display = "none";
+              document.getElementById("sim-undo").style.display = "none";
+              document.getElementById("sim-type-input").focus();
+            } else {
+              this.penalizeAnswer(isPlayer1 ? "maya" : "rafi", 20, 10);
+              VisualFX.showToast("Order incorrect! Follow standard workplace English.", false);
+            }
+          };
+
+          document.getElementById("sim-commit").onclick = () => {
+            const val = document.getElementById("sim-type-input").value.trim();
+            if (val === cur.target) {
+              this.rewardAnswer(isPlayer1 ? "maya" : "rafi", 150);
+              if (isPlayer1) {
+                this.pairEmailData.claim.push(cur.target);
+              } else {
+                this.pairEmailData.adjustment.push(cur.target);
+              }
+              VisualFX.showToast("Sentence locked into official email buffer! (+150 PTS)", true);
+              setTimeout(() => { pStep++; renderSimStep(); }, 600);
+            } else {
+              this.penalizeAnswer(isPlayer1 ? "maya" : "rafi", 20, 8);
+              if (val.length > 0 && val[0] !== cur.target[0]) {
+                VisualFX.showToast("Check capitalization at start of sentence.", false);
+              } else if (!val.endsWith(cur.target.slice(-1))) {
+                VisualFX.showToast(`Ensure closing punctuation '${cur.target.slice(-1)}' is present.`, false);
+              } else {
+                VisualFX.showToast("Typing discrepancy detected! Verify spelling.", false);
+              }
+            }
+          };
+        };
+
+        const renderHandoverScreen = () => {
+          SoundFX.comboJingle();
+          VisualFX.confettiBlast();
+          document.getElementById("dialogue-speaker").innerText = "MR. ARMAN (Manager Gate)";
+          document.getElementById("active-sprite").src = "images/characters/arman_approving.png";
+          document.getElementById("dialogue-body").innerText = "HANDOVER NOTICE: Nadia's Complaint Email is compiled! Hand device to Rafi (Student B).";
+
+          const body = document.getElementById("interactive-body");
+          body.innerHTML = `
+            <div style="background: #f1f5f9; border: 2px solid var(--accent); border-radius: 12px; padding: 12px; text-align: left; font-size: 12px; line-height: 1.6; margin-bottom: 10px;">
+              <strong>CUSTOMER COMPLAINT RECEIVED:</strong><br />
+              Nadia reported that 3 out of 12 mugs arrived broken.<br /><br />
+              <strong>STAFF DIRECTIVE FOR RAFI (ACTIVITY D):</strong><br />
+              1. Acknowledge the problem &amp; apologise.<br />
+              2. Offer 3 replacement mugs by Friday for free.<br />
+              3. Ask if the solution works for the customer!
+            </div>
+            <button class="btn-uma-main" style="width: 100%; font-size: 13px; padding: 10px;" id="btn-start-p2">
+              PLAYER 2 (RAFI): WRITE ADJUSTMENT EMAIL &gt;&gt;
+            </button>
+          `;
+
+          document.getElementById("btn-start-p2").onclick = () => {
+            SoundFX.tap();
+            renderSimStep();
+          };
+        };
+
+        renderSimStep();
+      },
+
+      openVerification() {
+        if (this.timerInterval) {
+          clearInterval(this.timerInterval);
+          this.timerInterval = null;
+        }
+        this.updateHUD();
+        this.switchScreen("screen-results");
+        this.playBGM("bgm_victory.mp3");
+        SoundFX.comboJingle();
+        VisualFX.confettiBlast();
+
+        const totalSecs = this.startTime 
+          ? Math.floor((Date.now() - this.startTime) / 1000) + this.elapsedOffset 
+          : this.elapsedOffset;
+
+        const m = String(Math.floor(totalSecs / 60)).padStart(2, '0');
+        const s = String(totalSecs % 60).padStart(2, '0');
+        const timeStr = `${m}:${s}`;
+        const token = "UP-" + Math.random().toString(36).substring(2, 8).toUpperCase() + `-${this.score}`;
+
+        document.getElementById("res-student-a").innerText = this.profile.studentA || "Nadia";
+        document.getElementById("res-student-b").innerText = this.profile.studentB || "Rafi";
+        document.getElementById("res-class").innerText = this.profile.classId || "-";
+        document.getElementById("res-handle").innerText = this.profile.handle || "-";
+        document.getElementById("res-time").innerText = timeStr;
+        document.getElementById("res-score").innerText = `${this.score} PTS`;
+        document.getElementById("res-token").innerText = token;
+
+        let rank = "B";
+        if (this.score >= 5500) rank = "SS";
+        else if (this.score >= 4500) rank = "S";
+        else if (this.score >= 3200) rank = "A";
+
+        document.getElementById("res-rank").innerText = rank;
+      },
+
+      exportReport(format) {
+        SoundFX.tap();
+        const totalSecs = this.startTime 
+          ? Math.floor((Date.now() - this.startTime) / 1000) + this.elapsedOffset 
+          : this.elapsedOffset;
+        const m = String(Math.floor(totalSecs / 60)).padStart(2, '0');
+        const s = String(totalSecs % 60).padStart(2, '0');
+        const timeStr = `${m}:${s}`;
+        const rank = document.getElementById("res-rank").innerText;
+        const token = document.getElementById("res-token").innerText;
+        const timestamp = new Date().toLocaleString("en-US", { timeZone: "Asia/Jakarta" });
+
+        const nadiaEmailBody = this.pairEmailData.claim.length > 0 
+          ? this.pairEmailData.claim.join(" ") 
+          : "I ordered 12 mugs for an event on Saturday. Three mugs arrived broken inside the box. Could you replace the three mugs by Friday? Please let me know if this is possible.";
+
+        const rafiEmailBody = this.pairEmailData.adjustment.length > 0 
+          ? this.pairEmailData.adjustment.join(" ") 
+          : "Thank you for telling us about the problem. We checked the order and apologise for the damage. We can send three replacement mugs by Friday for free. Please let me know if this solution works for you.";
+
+        const filename = `EOP_Meeting6_ActivityD_${(this.profile.handle || "Report").replace(/\s+/g, '_')}.${format}`;
+
+        if (format === 'txt') {
+          const txtContent = `=====================================================
+UNIVERSITAS PANCASILA - FACULTY OF ECONOMICS & BUSINESS
+ENGLISH FOR OCCUPATIONAL PURPOSES (EOP 2026)
+MEETING 6: SOLVING A CUSTOMER PROBLEM (ACTIVITY D)
+=====================================================
+OFFICIAL ASSESSMENT VERIFICATION RECORD
+
+Student A (Nadia / Customer): ${this.profile.studentA || "Nadia"}
+Student B (Rafi / Staff): ${this.profile.studentB || "Rafi"}
+Class ID: ${this.profile.classId || "N/A"}
+Trainer Handle: ${(this.profile.handle || "TRAINER").toUpperCase()}
+Session Date: ${timestamp}
+
+-----------------------------------------------------
+PERFORMANCE METRICS
+-----------------------------------------------------
+Final Score: ${this.score} PTS
+Final Accuracy (Stamina): ${this.stamina}%
+Total Gameplay Time: ${timeStr}
+Evaluated Grade Rank: ${rank}
+Verification Hash: ${token}
+
+-----------------------------------------------------
+STAGE COMPLETION AUDIT
+-----------------------------------------------------
+Module 0 (Three Core Terms): ${this.moduleStats[0] ? "PASSED" : "INCOMPLETE"}
+Module 1 (Word Bank Touch-Pills): ${this.moduleStats[1] ? "PASSED" : "INCOMPLETE"}
+Module 2 (Helpful Sentence Patterns): ${this.moduleStats[2] ? "PASSED" : "INCOMPLETE"}
+Module 3 (Model Case: Order 206): ${this.moduleStats[3] ? "PASSED" : "INCOMPLETE"}
+Module 4 (Transcription Engine): ${this.moduleStats[4] ? "PASSED" : "INCOMPLETE"}
+Module 5 (Customer Triage Capstone): ${this.moduleStats[5] ? "PASSED" : "INCOMPLETE"}
+Module 6 (Activity D Paired Simulation): ${this.moduleStats[6] ? "PASSED" : "INCOMPLETE"}
+
+=====================================================
+ARTIFACT 2.1: CUSTOMER COMPLAINT & CLAIM (ACTIVITY D)
+=====================================================
+Date: 28 September 2026
+To: rafi@printworks.co.id
+From: nadia@campusconnect.ac.id
+Subject: Broken Mugs Claim — Order 310
+
+Dear Rafi,
+
+${nadiaEmailBody}
+
+Best regards,
+Nadia | Operations Coordinator
+Campus Connect
+
+=====================================================
+ARTIFACT 2.2: STAFF ADJUSTMENT OFFER (ACTIVITY D)
+=====================================================
+Date: 28 September 2026
+To: nadia@campusconnect.ac.id
+From: rafi@printworks.co.id
+Subject: Re: Broken Mugs Claim — Order 310
+
+Dear Nadia,
+
+${rafiEmailBody}
+
+Best regards,
+Rafi | Customer Service Coordinator
+PrintWorks Indonesia
+=====================================================
+Certified by EOP Automated Evaluation System.
+`;
+          // Direct native bridge if running inside APK, else web blob
+          if (window.AndroidBridge && window.AndroidBridge.saveReportFile) {
+            window.AndroidBridge.saveReportFile(filename, txtContent, "text/plain");
+            return;
+          }
+
+          const blob = new Blob([txtContent], { type: "text/plain;charset=utf-8" });
+          const a = document.createElement("a");
+          a.href = URL.createObjectURL(blob);
+          a.download = filename;
+          a.click();
+          VisualFX.showToast("Text Report Downloaded!", true);
+        } else {
+          const docContent = `\ufeff<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+<head><meta charset='utf-8'><title>EOP Meeting 6 Assessment Record</title>
+<style>
+  body { font-family: Calibri, Arial, sans-serif; font-size: 11pt; color: #1e293b; }
+  table { border-collapse: collapse; width: 100%; margin-top: 12px; margin-bottom: 16px; }
+  th, td { border: 1px solid #94a3b8; padding: 8px 12px; text-align: left; }
+  th { background-color: #1e3a8a; color: white; }
+  .header-box { text-align: center; border-bottom: 2px solid #1e3a8a; padding-bottom: 8px; margin-bottom: 16px; }
+  .email-box { background-color: #f8fafc; border: 1.5px solid #cbd5e1; border-radius: 8px; padding: 14px; margin-top: 10px; margin-bottom: 20px; }
+  .email-meta { font-family: Consolas, monospace; font-size: 10pt; color: #475569; border-bottom: 1px dashed #cbd5e1; padding-bottom: 6px; margin-bottom: 10px; }
+</style>
+</head>
+<body>
+  <div class="header-box">
+    <h2>UNIVERSITAS PANCASILA</h2>
+    <h3>English for Occupational Purposes (EOP 2026)</h3>
+    <p>Meeting 6 Official Verification Report: Activity D Email Exchange</p>
+  </div>
+  <table>
+    <tr><th colspan="2">STUDENT PAIR IDENTIFICATION</th></tr>
+    <tr><td><strong>Student A (Nadia / Customer):</strong></td><td>${this.profile.studentA || "Nadia"}</td></tr>
+    <tr><td><strong>Student B (Rafi / Staff):</strong></td><td>${this.profile.studentB || "Rafi"}</td></tr>
+    <tr><td><strong>Class Identifier:</strong></td><td>${this.profile.classId || "N/A"}</td></tr>
+    <tr><td><strong>Trainer / Team Handle:</strong></td><td>${(this.profile.handle || "TRAINER").toUpperCase()}</td></tr>
+    <tr><td><strong>Session Timestamp:</strong></td><td>${timestamp}</td></tr>
+  </table>
+  <table>
+    <tr><th colspan="2">PERFORMANCE METRICS</th></tr>
+    <tr><td><strong>Final Cumulative Score:</strong></td><td>${this.score} PTS</td></tr>
+    <tr><td><strong>Operational Accuracy:</strong></td><td>${this.stamina}%</td></tr>
+    <tr><td><strong>Total Gameplay Time:</strong></td><td>${timeStr}</td></tr>
+    <tr><td><strong>Performance Rank:</strong></td><td><strong>${rank}</strong></td></tr>
+    <tr><td><strong>Verification Hash:</strong></td><td><code>${token}</code></td></tr>
+  </table>
+  <h3>ARTIFACT 2.1: CUSTOMER COMPLAINT &amp; CLAIM (ACTIVITY D)</h3>
+  <div class="email-box">
+    <div class="email-meta">
+      <strong>Subject:</strong> Broken Mugs Claim — Order 310<br />
+      <strong>To:</strong> rafi@printworks.co.id &bull; <strong>From:</strong> nadia@campusconnect.ac.id
+    </div>
+    <p>Dear Rafi,</p>
+    <p>${nadiaEmailBody}</p>
+    <p>Best regards,<br /><strong>Nadia</strong> | Operations Coordinator<br />Campus Connect</p>
+  </div>
+  <h3>ARTIFACT 2.2: STAFF ADJUSTMENT OFFER (ACTIVITY D)</h3>
+  <div class="email-box">
+    <div class="email-meta">
+      <strong>Subject:</strong> Re: Broken Mugs Claim — Order 310<br />
+      <strong>To:</strong> nadia@campusconnect.ac.id &bull; <strong>From:</strong> rafi@printworks.co.id
+    </div>
+    <p>Dear Nadia,</p>
+    <p>${rafiEmailBody}</p>
+    <p>Best regards,<br /><strong>Rafi</strong> | Customer Service Coordinator<br />PrintWorks Indonesia</p>
+  </div>
+  <br />
+  <p><em>Certified by EOP Automated Evaluation System &bull; Universitas Pancasila 2026</em></p>
+</body>
+</html>`;
+
+          if (window.AndroidBridge && window.AndroidBridge.saveReportFile) {
+            window.AndroidBridge.saveReportFile(filename, docContent, "application/msword");
+            return;
+          }
+
+          const blob = new Blob([docContent], { type: "application/msword;charset=utf-8" });
+          const a = document.createElement("a");
+          a.href = URL.createObjectURL(blob);
+          a.download = filename;
+          a.click();
+          VisualFX.showToast("Word Document Exported!", true);
+        }
+      },
+
+      switchScreen(id) {
+        document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
+        document.getElementById(id).classList.add("active");
+      }
+    };
+
+    window.onload = () => app.init();
+  </script>
+</body>
+</html>
